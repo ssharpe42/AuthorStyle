@@ -1,0 +1,41 @@
+\begin{thebibliography}{5}
+\expandafter\ifx\csname natexlab\endcsname\relax\def\natexlab#1{#1}\fi
+
+\bibitem[{Argamon et~al.(2007)Argamon, Whitelaw, Chase, Hota, Garg, and
+  Levitan}]{Argamon2007}
+Shlomo Argamon, Casey Whitelaw, Paul Chase, Sobhan~Raj Hota, Navendu Garg, and
+  Shlomo Levitan. 2007.
+\newblock \href {https://doi.org/10.1002/asi.20553} {{Stylistic text
+  classification using functional lexical features}}.
+\newblock \emph{Journal of the American Society for Information Science and
+  Technology}, 58(6):802--822.
+
+\bibitem[{Hedegaard and Simonsen(2011)}]{Hedegaard2011}
+Steffen Hedegaard and Jakob~Grue Simonsen. 2011.
+\newblock \href {http://aclweb.org/anthology/P11-2012} {{Lost in Translation:
+  Authorship Attribution using Frame Semantics BT - Proceedings of the 49th
+  Annual Meeting of the Association for Computational Linguistics: Human
+  Language Technologies}}.
+\newblock pages 65--70. Association for Computational Linguistics.
+
+\bibitem[{Hirst and Feng(2013)}]{Hirst2013}
+Graeme Hirst and Vanessa~Wei Feng. 2013.
+\newblock \href {https://doi.org/10.1093/llc/fqt021} {{Patterns of local
+  discourse coherence as a feature for authorship attribution}}.
+\newblock \emph{Literary and Linguistic Computing}, 29(2):191--198.
+
+\bibitem[{Stamatatos(2009)}]{Stamatatos2009}
+Efstathios Stamatatos. 2009.
+\newblock \href {https://doi.org/10.1002/asi.21001} {{A survey of modern
+  authorship attribution methods}}.
+\newblock \emph{Journal of the American Society for Information Science and
+  Technology}, 60(3):538--556.
+
+\bibitem[{Stamatatos(2018)}]{Stamatatos2018}
+Efstathios Stamatatos. 2018.
+\newblock \href {https://doi.org/10.1002/asi.23968} {{Masking topic-related
+  information to enhance authorship attribution}}.
+\newblock \emph{Journal of the Association for Information Science and
+  Technology}, 69(3):461--473.
+
+\end{thebibliography}
