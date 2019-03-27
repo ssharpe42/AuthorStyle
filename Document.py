@@ -38,7 +38,7 @@ class Document():
     #     zip_ngrams = zip(*[text_tokens[i:] for i in range(n)])
     #     self.word_ngrams = [" ".join(ngram) for ngram in zip_ngrams]
 
-    def words(self, lemma = True, entities = False, punct = False):
+    def calc_words(self, lemma = True, entities = False, punct = False):
         """
             Sets document's word list
 
@@ -61,23 +61,27 @@ class Document():
             self.words = [w.lower_ for w in tokens]
 
 
-    def char_ngrams(self, n ):
+    def calc_pos(self, detailed = False):
 
-        zip_ngrams = zip(*[self.doc.text[i:] for i in range(n)])
-        self.char_ngrams = [''.join(ngram) for ngram in zip_ngrams]
+        self.pos_tokens = [t.tag_ if detailed else t.pos_ for t in self.doc]
 
-    def pos_ngrams(self, n , detailed = False):
-        """ Sets document's part of speech ngrams
+    # def char_ngrams(self, n ):
+    #
+    #     zip_ngrams = zip(*[self.doc.text[i:] for i in range(n)])
+    #     self.char_ngrams = [''.join(ngram) for ngram in zip_ngrams]
 
-            Params
-            ------
-            n: ngram sizes
-            detailed: use spacy's fine-grained pos tags
-
-          """
-        pos_tokens = [t.tag_ if detailed else t.pos_ for t in self.doc]
-        zip_ngrams = zip(*[pos_tokens[i:] for i in range(n)])
-        self.pos_ngrams = [' '.join(ngram) for ngram in zip_ngrams]
+    # def pos_ngrams(self, n , detailed = False):
+    #     """ Sets document's part of speech ngrams
+    #
+    #         Params
+    #         ------
+    #         n: ngram sizes
+    #         detailed: use spacy's fine-grained pos tags
+    #
+    #       """
+    #     pos_tokens = [t.tag_ if detailed else t.pos_ for t in self.doc]
+    #     zip_ngrams = zip(*[pos_tokens[i:] for i in range(n)])
+    #     self.pos_ngrams = [' '.join(ngram) for ngram in zip_ngrams]
 
     def vocab_richness(self):
 
@@ -117,11 +121,14 @@ class Document():
             print(main_ref, m.mentions, sentence,dependency)
 
 
-    def process_doc(self):
+    def process_doc(self, word_lemma=True,word_entities=False,word_punct= False,pos_detailed=False):
 
         self.sentence_len()
         self.word_len()
-        self.words()
+        self.calc_words(lemma=word_lemma,
+                        entities=word_entities,
+                        punct = word_punct)
+        self.calc_pos(detailed=pos_detailed)
         self.vocab_richness()
         #self.corref_resolution()
 
