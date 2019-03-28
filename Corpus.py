@@ -1,5 +1,6 @@
 from Document import Document
 
+import pickle
 import string
 import pandas as pd
 import numpy as np
@@ -57,6 +58,7 @@ class Corpus():
         """Initialize and process documents"""
 
         for i in range(len(self.documents)):
+            print('Processing doc {} of {}'.format(i, len(self.documents)))
             self.documents[i].process_doc(
                  word_lemma=self.word_lemma,
                  word_entities=self.word_entities,
@@ -116,3 +118,7 @@ class Corpus():
         self.authors = [d.author for d in self.documents]
         self.y = pd.get_dummies(pd.DataFrame(self.authors))
         self.X = pd.concat([self.char_mat, self.word_mat, self.pos_mat, self.feature_mat], axis = 1)
+
+    def save(self, filename):
+        with open(filename, 'wb') as f:
+            pickle.dump(self, f)

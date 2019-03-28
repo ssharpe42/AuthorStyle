@@ -8,8 +8,8 @@ os.chdir('/Users/Sam/Desktop/School/Emp Meth of DS/FinalProject/AuthorStyle')
 with open('example_json.json','r') as f:
     doc_json = json.load(f)
 
-results = doc_json['response']['results']
-n_docs = len(results)
+sample_data = pd.read_csv('16_authors_dataset.csv').sample(50)
+N = sample_data.shape[0]
 
 nlp = spacy.load('en_coref_md')
 
@@ -24,14 +24,18 @@ corpus_params = {'char_ngrams': (2,2),
                   'char_lower':False}
 
 corpus = Corpus(**corpus_params)
-for i in range(n_docs):
-    doc = Document(text = results[i]['fields']['bodyText'],
-                   author= results[i]['fields']['byline'],
-                   category = '',
+for i in range(N):
+    print('Loading document {} of {}'.format(i , N))
+    doc = Document(text = sample_data.body.iloc[i],
+                   author= sample_data.author.iloc[i],
+                   category = sample_data.primary_tags.iloc[i],
                    spacy_model=nlp)
     corpus.documents.append(doc)
 
 corpus.init_docs()
 corpus.build_data()
+
 print(corpus.X)
 print(corpus.y)
+
+corpus.save('test_corpus.pkl')
