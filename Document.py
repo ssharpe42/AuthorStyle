@@ -1,7 +1,8 @@
 import numpy as np
 import spacy
 import nltk
-
+from collections import Counter
+import pandas as pd
 
 #Useful links
 # Span class: https://spacy.io/api/span - Attribute section
@@ -104,22 +105,80 @@ class Document():
         # N = len(cnts)
 
 
-    def corref_resolution(self):
+    def coref_resolution(self, n = 2, max_span = 10):
 
-        # Looks like this doesn't pick up very long range resolutions
-        sent_ids = {s.start:i for i,s in enumerate(self.doc.sents)}
 
-        for m in self.doc._.coref_clusters:
+        #sent_ids = {s.start:i for i,s in enumerate(self.doc.sents)}
+        sent_ids = {s.start: i for i, s in enumerate(doc.sents)}
+        coref_list=[]
+
+        #for m in self.doc._.coref_clusters:
+        for m in doc._.coref_clusters:
             main_ref = m.main
             sentence = [sent_ids[x.sent.start] for x in m.mentions]
             dependency = []
+            pos = []
             for x in m.mentions:
-                #print(x.merge().dep_)
-                #print(x.root.dep_)
                 dependency.append(x.root.dep_)
+                pos.append(x.root.tag_)
 
-            print(main_ref, m.mentions, sentence,dependency)
+            coref_list.append({'main': main_ref,
+                               'mentions': m.mentions,
+                               'sent_ids': np.array(sentence),
+                               'role': dependency,
+                               'pos': pos})
 
+        spans = []
+        doc_transitions = []
+        for cluster in coref_list:
+            first_sent = cluster['sent_ids'][0]
+            last_sent = cluster['sent_ids'][-1]
+            n_ref = len(cluster['mentions'])
+            unique_sents = np.unique(cluster['sent_ids'])
+            n_sents = len(unique_sents)
+
+            #Span of coreferences
+            spans.append(last_sent-first_sent)
+
+            #go to at least n sentences
+            end = np.maximum(first_sent + n, last_sent+1)
+
+            transitions = []
+            for s in range(first_sent, end):
+
+                if s not in unique_sents:
+                    transitions.append('_')
+                else:
+                    first_occur = np.where(cluster['sent_ids']==s)[0][0]
+                    transitions.append(cluster['role'][first_occur])
+
+            doc_transitions.append(transitions)
+
+        zip_ngrams1 = [zip(*[trans[i:] for i in range(n-1)]) for trans in doc_transitions]
+        zip_ngrams2 = [zip(*[trans[i:] for i in range(n)]) for trans in doc_transitions]
+
+        ngrams1 = [(ngram) for z in zip_ngrams1 for ngram in z]
+        ngrams2 = [(ngram) for z in zip_ngrams2 for ngram in z]
+
+        count1 = Counter(ngrams1)
+        count2 = Counter(ngrams2)
+
+        self.coref_prob = {}
+        for roles in count2:
+            self.coref_prob[' '.join(roles)] = count2[roles]/count1[roles[0:(n-1)]]
+
+        spans = np.array(spans)
+        spans,counts = np.unique(spans, return_counts = True)
+        total = np.sum(counts)
+        coref_spans = {}
+        for i in range(0, max_span):
+            if i in spans:
+                indx = np.where(spans == i)[0][0]
+                coref_spans['coref_span_'+str(i)] = [counts[indx]/total]
+            else:
+                coref_spans['coref_span_' + str(i)] = [0]
+
+        self.coref_spans = pd.DataFrame.from_dict(coref_spans, orient ='columns')
 
     def process_doc(self, word_lemma=True,word_entities=False,word_punct= False,pos_detailed=False):
 
@@ -130,6 +189,6 @@ class Document():
                         punct = word_punct)
         self.calc_pos(detailed=pos_detailed)
         self.vocab_richness()
-        #self.corref_resolution()
+        self.coref_resolution()
 
 
