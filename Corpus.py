@@ -1,4 +1,4 @@
-from Document import Document
+#from Document import Document
 
 import pickle
 import string
@@ -17,7 +17,10 @@ class Corpus():
                  word_punct=False,
                  pos_detailed = False,
                  char_punct = True,
-                 char_lower = False):
+                 char_lower = False,
+                 coref_n = 2,
+                 coref_pos_types = ['DT', 'NN', 'NNP', 'NNPS', 'NNS', 'PRP', 'PRP$'],
+                 coref_dependencies = ['dobj', 'nsubj', 'nsubjpass', 'pobj', 'poss']):
 
 
         #Parameters
@@ -30,6 +33,10 @@ class Corpus():
         self.pos_detailed = pos_detailed
         self.char_punct = char_punct
         self.char_lower = char_lower
+
+        self.coref_n = coref_n
+        self.coref_pos_types = coref_pos_types
+        self.coref_dependencies = coref_dependencies
 
         self.documents = []
         self.word_ngrams = word_ngrams
@@ -63,8 +70,13 @@ class Corpus():
                  word_lemma=self.word_lemma,
                  word_entities=self.word_entities,
                  word_punct=self.word_punct,
-                 pos_detailed = self.pos_detailed
+                 pos_detailed = self.pos_detailed,
+                 coref_n = self.coref_n,
+                 coref_pos_types = self.coref_pos_types,
+                 coref_dependencies = self.coref_dependencies
             )
+
+        self.n_docs = len(self.documents)
 
     def add_document(self, document):
 
@@ -100,25 +112,39 @@ class Corpus():
         self.pos_mat = pd.DataFrame(pos_counts.toarray(), columns = self.pos_vocab)
 
     #....etc
+    def coref_features(self):
 
-    def gather_features(self):
+        self.coref_prob = pd.DataFrame([self.documents[i].coref_prob for i in range(self.n_docs)]).fillna(0)
+        self.coref_spans = pd.DataFrame([self.documents[i].coref_spans for i in range(self.n_docs)]).fillna(0)
 
-        self.mean_sent_lengths = [np.mean(d.sent_lengths) for d in self.documents]
-        self.mean_word_lengths = [np.mean(d.word_lengths) for d in self.documents]
-        self.feature_mat = pd.DataFrame({'sent_length':self.mean_sent_lengths,
-                                         'word_length': self.mean_word_lengths})
+        self.coref_misc = pd.DataFrame({'mean_mentions': [np.mean(d.coref_mentions) for d in self.documents],
+                                        'sd_mentions':[np.std(d.coref_mentions) for d in self.documents],
+                                        'mentions_per_sent': [np.mean(np.array(d.coref_mentions)/np.array(d.coref_unq_sents)) for d in self.documents]})
+
+        self.coref_mat = pd.concat([self.coref_prob, self.coref_spans, self.coref_misc], axis = 1)
+
+    def lexical_features(self):
+
+        self.lex_mat = pd.DataFrame({'sent_length':[np.mean(d.sent_lengths) for d in self.documents],
+                                     'word_length': [np.mean(d.word_lengths) for d in self.documents],
+                                     'vocab_richness': [d.VR for d in self.documents] })
 
     def build_data(self):
 
         self.fit_char_vectorizer()
         self.fit_word_vectorizer()
         self.fit_pos_vectorizer()
-        self.gather_features()
+        self.lexical_features()
+        self.coref_features()
 
-        self.authors = [d.author for d in self.documents]
+        self.authors = pd.DataFrame({'author':[d.author for d in self.documents]})
         self.y = pd.get_dummies(pd.DataFrame(self.authors))
-        self.X = pd.concat([self.char_mat, self.word_mat, self.pos_mat, self.feature_mat], axis = 1)
+        self.X = pd.concat([self.char_mat, self.word_mat, self.pos_mat, self.lex_mat, self.coref_mat], axis = 1)
+
+        self.data = pd.concat([self.authors, self.X], axis = 1)
 
     def save(self, filename):
+        #Cant pickle spacy docs
+        self.documents = []
         with open(filename, 'wb') as f:
             pickle.dump(self, f)

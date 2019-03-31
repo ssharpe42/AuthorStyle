@@ -37,7 +37,7 @@ class Network():
         self.input_dim = X.shape[1]
         self.output_dim = y.shape[1]
         self.hidden = hidden
-        self.dropout = dropout,
+        self.dropout = dropout
         self.bn = bn
         self.multiclass = multiclass
 
