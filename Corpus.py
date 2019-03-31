@@ -137,12 +137,14 @@ class Corpus():
         self.lexical_features()
         self.coref_features()
 
-        self.authors = pd.Series(d.author for d in self.documents])
+        self.authors = pd.DataFrame({'author':[d.author for d in self.documents]})
         self.y = pd.get_dummies(pd.DataFrame(self.authors))
         self.X = pd.concat([self.char_mat, self.word_mat, self.pos_mat, self.lex_mat, self.coref_mat], axis = 1)
 
         self.data = pd.concat([self.authors, self.X], axis = 1)
 
     def save(self, filename):
+        #Cant pickle spacy docs
+        self.documents = []
         with open(filename, 'wb') as f:
             pickle.dump(self, f)
