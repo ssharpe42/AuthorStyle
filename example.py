@@ -8,7 +8,7 @@ os.chdir('/Users/Sam/Desktop/School/Emp Meth of DS/FinalProject/AuthorStyle')
 with open('example_json.json','r') as f:
     doc_json = json.load(f)
 
-sample_data = pd.read_csv('16_authors_dataset.csv').sample(50)
+sample_data = pd.read_csv('16_authors_dataset.csv').sample(5)
 N = sample_data.shape[0]
 
 nlp = spacy.load('en_coref_md')
@@ -21,7 +21,11 @@ corpus_params = {'char_ngrams': (2,2),
                  'word_punct':False,
                  'pos_detailed': False,
                  'char_punct': False,
-                  'char_lower':False}
+                 'char_lower':False,
+                  'coref_n': 2,
+                  'coref_pos_types' :['DT', 'NN', 'NNP', 'NNPS', 'NNS', 'PRP', 'PRP$'],
+                  'coref_dependencies':['dobj', 'nsubj', 'nsubjpass', 'pobj', 'poss']
+}
 
 corpus = Corpus(**corpus_params)
 for i in range(N):
