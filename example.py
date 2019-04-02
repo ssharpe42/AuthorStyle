@@ -5,10 +5,10 @@ import os
 
 os.chdir('/Users/Sam/Desktop/School/Emp Meth of DS/FinalProject/AuthorStyle')
 
-sample_data = pd.read_csv('16_authors_dataset.csv').sample(500)
-N = sample_data.shape[0]
-
 nlp = spacy.load('en_coref_md')
+
+sample_data = pd.read_csv('16_authors_dataset.csv').sample(100)
+N = sample_data.shape[0]
 
 corpus_params = {'char_ngrams': (2,2),
                  'word_ngrams': (1,1),
@@ -36,9 +36,8 @@ for i in range(N):
 corpus.init_docs()
 corpus.build_data()
 
-print(corpus.X)
-print(corpus.y)
 
 corpus.save('test_corpus.pkl')
+
 with open('test_corpus.pickle', 'wb') as f:
     pickle.dump(corpus, f, protocol=pickle.HIGHEST_PROTOCOL)
