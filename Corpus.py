@@ -129,6 +129,12 @@ class Corpus():
                                      'word_length': [np.mean(d.word_lengths) for d in self.documents],
                                      'vocab_richness': [d.VR for d in self.documents] })
 
+    def voice_features(self):
+        self.voice_mat = pd.DataFrame({"hattrick_freq" : [d.hattrick_freq for d in self.documents],
+                                       "agentless_freq" : [d.agentless_freq for d in self.documents],
+                                       "passive_desc_freq" : [d.passive_desc_freq for d in self.documents],
+                                       "no_active_freq" : [d.no_active_freq for d in self.documents]}).fillna(0)
+
     def build_data(self):
 
         self.fit_char_vectorizer()
@@ -136,10 +142,11 @@ class Corpus():
         self.fit_pos_vectorizer()
         self.lexical_features()
         self.coref_features()
+        self.voice_features()
 
         self.authors = pd.DataFrame({'author':[d.author for d in self.documents]})
         self.y = pd.get_dummies(pd.DataFrame(self.authors))
-        self.X = pd.concat([self.char_mat, self.word_mat, self.pos_mat, self.lex_mat, self.coref_mat], axis = 1)
+        self.X = pd.concat([self.char_mat, self.word_mat, self.pos_mat, self.lex_mat, self.coref_mat, self.voice_mat], axis = 1)
 
         self.data = pd.concat([self.authors, self.X], axis = 1)
 

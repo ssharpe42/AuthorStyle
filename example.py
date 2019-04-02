@@ -3,9 +3,10 @@ from Corpus import *
 import json
 import os
 
-os.chdir('/Users/Sam/Desktop/School/Emp Meth of DS/FinalProject/AuthorStyle')
+# os.chdir('/Users/Sam/Desktop/School/Emp Meth of DS/FinalProject/AuthorStyle')
 
-sample_data = pd.read_csv('16_authors_dataset.csv').sample(500)
+sample_data = pd.read_csv('16_authors_dataset.csv').sample(10)
+# dummy = "She was suspected by everyone."
 N = sample_data.shape[0]
 
 nlp = spacy.load('en_coref_md')
@@ -32,6 +33,8 @@ for i in range(N):
                    category = sample_data.primary_tags.iloc[i],
                    spacy_model=nlp)
     corpus.documents.append(doc)
+    # [print(token, token.dep_) for token in doc.doc]
+    # [print(chunk.text, chunk.root.text, chunk.root.dep_) for chunk in doc.doc.noun_chunks]
 
 corpus.init_docs()
 corpus.build_data()
