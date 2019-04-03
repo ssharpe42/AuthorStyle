@@ -126,7 +126,9 @@ class Corpus():
     def lexical_features(self):
 
         self.lex_mat = pd.DataFrame({'sent_length':[np.mean(d.sent_lengths) for d in self.documents],
+                                     'sent_std': [np.std(d.sent_lengths) for d in self.documents],
                                      'word_length': [np.mean(d.word_lengths) for d in self.documents],
+                                     'word_std': [np.std(d.word_lengths) for d in self.documents],
                                      'vocab_richness': [d.VR for d in self.documents] })
 
     def build_data(self):
