@@ -22,6 +22,7 @@ class Document():
         self.text = text
         self.nlp = spacy_model
         self.doc = self.nlp(self.text)
+        self.sent_ids = {s.start: i for i, s in enumerate(self.doc.sents)}
 
     def sentence_len(self):
 
@@ -102,8 +103,37 @@ class Document():
         self.VR = K
         # N = len(cnts)
 
+    @staticmethod
+    def membership(include_set, exclude_set, test_set):
+        if not all(map(lambda i : any(map(lambda x : x in test_set, i)) if isinstance(i, tuple) else i in test_set, include_set)):
+            return False
+        if any(map(lambda x : x in test_set, exclude_set)):
+            return False
+
+        return True
 
 
+    def voice_passiveness(self):
+
+        sentence_counter = Counter()
+        for sentence in self.doc.sents:
+            deps = {token.dep_ for token in sentence}
+            sentence_counter["s"] += 1
+            if Document.membership({"auxpass", "agent", ("nsubjpass", "csubjpass")}, {}, deps):
+                sentence_counter["hattrick"] += 1
+            if Document.membership({"auxpass", ("nsubjpass", "csubjpass")}, {"agent"}, deps):
+                sentence_counter["agentless"] += 1
+            if Document.membership({"agent"}, {"auxpass", "nsubjpass", "csubjpass"}, deps):
+                sentence_counter["passive_description"] += 1
+            if Document.membership({}, {"nsubj", "csubj"}, deps):
+                sentence_counter["no_active"] += 1
+        doc_length = sentence_counter["s"]
+        freqs = {k : v / doc_length for k, v in sentence_counter.items()}
+
+        self.hattrick_freq = freqs["hattrick"] if "hattrick" in freqs else 0
+        self.agentless_freq = freqs["agentless"] if "agentless" in freqs else 0
+        self.passive_desc_freq = freqs["passive_description"] if "passive_description" in freqs else 0
+        self.no_active_freq = freqs["no_active"] if "no_active" in freqs else 0
 
 
     def coref_resolution(self, n = 2, max_span = 10,
@@ -129,7 +159,7 @@ class Document():
             raise ValueError("n must be at least 2")
 
         #Sentence Lookup
-        sent_ids = {s.start: i for i, s in enumerate(self.doc.sents)}
+        # sent_ids = {s.start: i for i, s in enumerate(self.doc.sents)}
 
         #List of coreference groups
         self.coref_list=[]
@@ -155,7 +185,7 @@ class Document():
 
                 self.coref_pos_main.append(m.main.root.tag_)
 
-                sentence = [sent_ids[x.sent.start] for x in m.mentions]
+                sentence = [self.sent_ids[x.sent.start] for x in m.mentions]
                 dependency = []
                 pos = []
                 for x in m.mentions:
@@ -369,7 +399,9 @@ class Document():
                     pos_detailed=False,
                     coref_n=2,
                     coref_pos_types=['DT', 'NN', 'NNP', 'NNPS', 'NNS', 'PRP', 'PRP$'],
-                    coref_dependencies=['dobj', 'nsubj', 'nsubjpass', 'pobj', 'poss']
+                    coref_dependencies=['dobj', 'nsubj', 'nsubjpass', 'pobj', 'poss'],
+                    passive_dependencies=['auxpass', 'agent', 'csubjpass', 'nsubjpass'],
+                    active_dependencies=['cubj', 'nsubj']
                     ):
 
         """
@@ -395,5 +427,6 @@ class Document():
         self.coref_resolution(n =coref_n,
                               pos_types=coref_pos_types,
                               dependencies=coref_dependencies)
+        self.voice_passiveness()
 
 
