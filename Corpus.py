@@ -5,6 +5,7 @@ import string
 import pandas as pd
 import numpy as np
 from sklearn.feature_extraction.text import CountVectorizer
+from spacy.lang.en.stop_words import STOP_WORDS 
 
 class Corpus():
 
@@ -129,6 +130,8 @@ class Corpus():
                                      'sent_std': [np.std(d.sent_lengths) for d in self.documents],
                                      'word_length': [np.mean(d.word_lengths) for d in self.documents],
                                      'word_std': [np.std(d.word_lengths) for d in self.documents],
+                                     'pct_doc_stopword': [ sum([1 if w in STOP_WORDS for w in d.words])/len(d.words) for d in self.documents], 
+                                     'pct_vocab_stopword': [ len(set(d.words) & STOPWORDS)/len(set(d.words)) for d in self.documents],
                                      'vocab_richness': [d.VR for d in self.documents] })
 
     def build_data(self):
