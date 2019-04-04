@@ -22,33 +22,6 @@ from keras.layers import (
 
 from keras.callbacks import EarlyStopping, ModelCheckpoint,LearningRateScheduler,Callback
 
-# F1 Callback https://medium.com/@thongonary/how-to-compute-f1-score-for-each-epoch-in-keras-a1acd17715a2
-class Metrics(Callback):
-
-    def __init__(self, validation_data):
-        super().__init__()
-        self.validation_data = validation_data
-
-    def on_train_begin(self, logs={}):
-        self.val_f1s = []
-        self.val_recalls = []
-        self.val_precisions = []
-
-
-    def on_epoch_end(self, epoch, logs={}):
-        x_val = self.validation_data[0]
-        y_true = self.validation_data[1]
-        val_predict = (np.asarray(self.model.predict(x_val))).round()
-        _val_f1 = f1_score(y_true, val_predict)
-        _val_recall = recall_score(y_true, val_predict)
-        _val_precision = precision_score(y_true, val_predict)
-        self.val_f1s.append(_val_f1)
-        self.val_recalls.append(_val_recall)
-        self.val_precisions.append(_val_precision)
-        print("— val_f1: % f — val_precision: % f — val_recall % f" % (_val_f1, _val_precision, _val_recall))
-        return
-
-
 class Network():
 
     def __init__(self,
@@ -58,7 +31,8 @@ class Network():
                  hidden= [300,200,100],
                  dropout = [],
                  bn = [],
-                 multiclass = True):
+                 multiclass = True,
+                 encoder = None):
 
         self.X = X
         self.X_val = X_val
@@ -70,6 +44,7 @@ class Network():
         self.output_dim = y.shape[1]
         self.hidden = hidden
         self.n_hidden = len(hidden)
+        self.encoder = encoder
 
         if not dropout or len(dropout)!=self.n_hidden:
             self.dropout = [.2 for i in range(self.n_hidden)]
@@ -82,6 +57,10 @@ class Network():
 
         self.multiclass = multiclass
 
+        if self.multiclass:
+            self.loss = 'categorical_crossentropy'
+        else:
+            self.loss = 'binary_crossentropy'
 
     def build_network(self):
 
@@ -93,41 +72,56 @@ class Network():
                 x = Dense(self.hidden[l], activation='relu', kernel_initializer='normal')(input)
             else:
                 x = Dense(self.hidden[l], activation='relu', kernel_initializer='normal')(x)
-            # self.model.add(Dense(self.hidden[l], activation = 'relu', kernel_initializer='normal'))
-            # self.model.add(Dropout(self.dropout[l]))
+
             x = Dropout(self.dropout[l])(x)
             if self.bn[l]:
                 x = BatchNormalization()(x)
-                #self.model.add(BatchNormalization())
+
 
         if self.output_dim ==1:
             output = Dense(self.output_dim, activation='sigmoid', kernel_initializer='normal')(x)
-            #self.model.add(Dense(self.output_dim, activation='sigmoid', kernel_initializer='normal'))
         else:
             output = Dense(self.output_dim, activation='softmax', kernel_initializer='normal')(x)
-            #self.model.add(Dense(self.output_dim, activation='softmax', kernel_initializer='normal'))
 
         self.model = Model(inputs = input, outputs = output)
 
 
     def fit(self,
             optimizer = optimizers.Adam,
-            lr = .01,
             epochs = 20,
-            batch_size = 32):
+            batch_size = 32,
+            early_stopping = True,
+            stop_patience = 10):
 
-        #metrics = Metrics(validation_data=(corpus.X.values[450:,], corpus.y.values[450:]))
-        net.model.compile(optimizer='adam',loss='categorical_crossentropy', metrics = ['accuracy'])
-        net.model.fit(self.X, self.y,
-                      validation_data=(self.X_val, self.y_val),
-                      epochs=epochs, batch_size=batch_size
-                      #callbacks=[metrics]
-        )
+        net.model.compile(optimizer='adam', loss=self.loss, metrics=[self.loss, 'accuracy'])
 
-class SVM():
+        if early_stopping:
+            earlystopper = EarlyStopping(patience=stop_patience, verbose=1, restore_best_weights=True)
+            net.model.fit(self.X, self.y,
+                          validation_data=(self.X_val, self.y_val),
+                          epochs=epochs, batch_size=batch_size,
+                          callbacks=[earlystopper]
+            )
+        else:
+            net.model.fit(self.X, self.y,
+                          validation_data=(self.X_val, self.y_val),
+                          epochs=epochs, batch_size=batch_size
+            )
 
-    def __init__(self):
-        pass
+
+    def predict_test(self):
+
+        self.y_pred = net.model.predict(self.X_test)
+
+        self.y_pred_text = encoder.inverse_transform(self.y_pred)
+        self.y_true_text = encoder.inverse_transform(self.y_test)
+
+        return {'y_true':self.y_test, 'y_pred':self.y_pred,
+                'y_true_text':self.y_true_text,'y_pred_text':self.y_pred_text}
+
+    def save(self, filename):
+        with open(filename, 'wb') as f:
+            pickle.dump(self, f)
 
 
 
@@ -137,13 +131,19 @@ if __name__ == "__main__":
     with open('test_corpus.pkl', 'rb') as f:
         corpus = pickle.load(f)
 
-    X_train, X_val, X_test, y_train, y_val, y_test = corpus.generate_model_data()
+    X_train, X_val, X_test, y_train, y_val, y_test, encoder = corpus.generate_model_data(type='multiclass',
+                                                                                #model_authors = [corpus.authors['author'].iloc[0]],
+                                                                                sampling = 'oversample',
+                                                                                feature_sets = ['coref'])
 
     net = Network(X_train,y_train,
                   X_val, y_val,
                   X_test, y_test,
-                  hidden = [100,100,100,100], dropout=[.6,.6,.6,.6])
+                  hidden = [200,200,200,200],
+                  dropout=[.6,.6,.6,.6],
+                  multiclass= y_train.shape[1]>1,
+                  encoder = encoder)
 
     net.build_network()
     net.fit(epochs=40)
-
+    net.predict_test()

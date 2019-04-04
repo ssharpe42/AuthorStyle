@@ -1,4 +1,4 @@
-#from Document import Document
+from Document import Document
 
 import pickle
 import string
@@ -198,17 +198,19 @@ class Corpus():
             y = self.y_
 
 
-        X_train, X_val, y_train, y_val, author_train, author_val= train_test_split(X, y, authors, test_size=.4)
-        X_val, X_test, y_val, y_test, author_val, author_test = train_test_split(X_val, y_val, author_val, test_size=.4)
+        X_train, X_val, y_train, y_val, author_train, author_val= train_test_split(X, y, authors, test_size=.4, random_state=42)
+        X_val, X_test, y_val, y_test, author_val, author_test = train_test_split(X_val, y_val, author_val, test_size=.4, random_state=42)
 
         if sampling == 'oversample':
 
-            #counts = author_train['author'].value_counts().to_dict()
-            ros = RandomOverSampler(sampling_strategy='not majority',random_state=42)
-            X_train, y_train = ros.fit_resample(X_train, y_train)
+            ros = RandomOverSampler(sampling_strategy='not majority',random_state=42, return_indices=True)
+            _ , _ , indx = ros.fit_resample(X_train, y_train)
+
+            X_train = X_train[indx, :]
+            y_train = y_train[indx, :]
 
 
-        return X_train, X_val, X_test, y_train, y_val, y_test
+        return X_train, X_val, X_test, y_train, y_val, y_test, encoder
 
     def save(self, filename):
         #Cant pickle spacy docs
