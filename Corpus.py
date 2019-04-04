@@ -1,10 +1,15 @@
-#from Document import Document
+from Document import Document
 
 import pickle
 import string
 import pandas as pd
 import numpy as np
 from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.preprocessing import LabelBinarizer
+from sklearn.model_selection import train_test_split
+#from imblearn.datasets import make_imbalance,
+from imblearn.over_sampling import RandomOverSampler
+
 
 class Corpus():
 
@@ -54,6 +59,8 @@ class Corpus():
         self.word_mat = pd.DataFrame()
         self.pos_mat = pd.DataFrame()
 
+        self.feature_sets = {}
+
     def tokenization(self, doc):
         return doc.split(' ')
 
@@ -92,6 +99,7 @@ class Corpus():
         self.char_vocab =  self.char_vectorizer.get_feature_names()
         char_counts = self.char_vectorizer.fit_transform(doc_text)
         self.char_mat = pd.DataFrame(char_counts.toarray(), columns = self.char_vocab)
+        self.feature_sets['char'] = self.char_vocab
 
     def fit_word_vectorizer(self):
 
@@ -101,6 +109,7 @@ class Corpus():
         self.word_vocab =  self.word_vectorizer.get_feature_names()
         word_counts = self.word_vectorizer.fit_transform(clean_doc_text )
         self.word_mat = pd.DataFrame(word_counts.toarray(), columns = self.word_vocab)
+        self.feature_sets['word']= self.word_vocab
 
     def fit_pos_vectorizer(self):
 
@@ -110,7 +119,7 @@ class Corpus():
         self.pos_vocab =  self.pos_vectorizer.get_feature_names()
         pos_counts = self.pos_vectorizer.fit_transform(clean_doc_pos)
         self.pos_mat = pd.DataFrame(pos_counts.toarray(), columns = self.pos_vocab)
-
+        self.feature_sets['pos'] = self.pos_vocab
     #....etc
     def coref_features(self):
 
@@ -123,6 +132,8 @@ class Corpus():
 
         self.coref_mat = pd.concat([self.coref_prob, self.coref_spans, self.coref_misc], axis = 1)
 
+        self.feature_sets['coref'] = self.coref_mat.columns.values
+
     def lexical_features(self):
 
         self.lex_mat = pd.DataFrame({'sent_length':[np.mean(d.sent_lengths) for d in self.documents],
@@ -131,12 +142,17 @@ class Corpus():
                                      'word_std': [np.std(d.word_lengths) for d in self.documents],
                                      'vocab_richness': [d.VR for d in self.documents] })
 
+        self.feature_sets['lex'] = self.lex_mat.columns.values
+
     def voice_features(self):
+        
         self.voice_mat = pd.DataFrame({"hattrick_freq" : [d.hattrick_freq for d in self.documents],
                                        "agentless_freq" : [d.agentless_freq for d in self.documents],
                                        "passive_desc_freq" : [d.passive_desc_freq for d in self.documents],
                                        "no_active_freq" : [d.no_active_freq for d in self.documents]}).fillna(0)
-
+        
+        self.feature_sets['voice'] = self.voice_mat.columns.values
+        
     def build_data(self):
 
         self.fit_char_vectorizer()
@@ -147,10 +163,65 @@ class Corpus():
         self.voice_features()
 
         self.authors = pd.DataFrame({'author':[d.author for d in self.documents]})
-        self.y = pd.get_dummies(pd.DataFrame(self.authors))
-        self.X = pd.concat([self.char_mat, self.word_mat, self.pos_mat, self.lex_mat, self.coref_mat, self.voice_mat], axis = 1)
+        self.X_ = pd.concat([self.char_mat, self.word_mat, self.pos_mat, self.lex_mat, self.coref_mat, self.voice_mat], axis = 1)
+        self.feature_ids = np.array(range(self.X_.shape[1]))
+        self.features = {f:indx for indx,f in enumerate(self.X_)}
+        self.data = pd.concat([self.authors, self.X_], axis=1)
 
-        self.data = pd.concat([self.authors, self.X], axis = 1)
+        self.encoder_ = LabelBinarizer()
+        self.y_ = self.encoder_.fit_transform(self.authors.values)
+        self.X_ = self.X_.values
+
+
+    def generate_model_data(self, type = 'multiclass',
+                            model_authors = [],
+                            sampling = 'oversample',
+                            feature_sets = ['lex','coref','pos','word','char','voice']):
+
+        features = []
+        for f in feature_sets:
+            features.extend(self.feature_sets[f])
+
+        feature_indx = np.array([self.features[f] for f in features])
+
+        X = self.X_[:,feature_indx]
+
+    # Type is one of 'multiclass' or 'onevsone' or 'onevsall'
+        if type == 'onevsone':
+
+            encoder = LabelBinarizer()
+            author_indx = self.authors.isin(model_authors)
+            X = X[author_indx]
+            authors = self.authors.iloc[author_indx]
+            y = encoder.fit_transform(authors)
+
+        elif type == 'onevsall':
+
+            encoder = LabelBinarizer()
+            author_indx = ~self.authors.isin(model_authors)
+            authors = self.authors.copy()
+            authors[author_indx] = 'Other'
+            y = encoder.fit_transform(authors)
+
+        elif type == 'multiclass':
+
+            encoder = self.encoder_
+            authors = self.authors
+            y = self.y_
+
+
+        X_train, X_val, y_train, y_val, author_train, author_val= train_test_split(X, y, authors, test_size=.4, random_state=42)
+        X_val, X_test, y_val, y_test, author_val, author_test = train_test_split(X_val, y_val, author_val, test_size=.4, random_state=42)
+
+        if sampling == 'oversample':
+
+            ros = RandomOverSampler(sampling_strategy='not majority',random_state=42, return_indices=True)
+            _ , _ , indx = ros.fit_resample(X_train, y_train)
+
+            X_train = X_train[indx, :]
+            y_train = y_train[indx, :]
+
+        return X_train, X_val, X_test, y_train, y_val, y_test, encoder
 
     def save(self, filename):
         #Cant pickle spacy docs
