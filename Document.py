@@ -1,8 +1,9 @@
 import numpy as np
 import spacy
 import nltk
-from collections import Counter
+from collections import Counter, defaultdict
 import pandas as pd
+import re
 
 #Useful links
 # Span class: https://spacy.io/api/span - Attribute section
@@ -21,7 +22,7 @@ class Document():
         self.author = author
         self.text = text
         self.nlp = spacy_model
-        self.doc = self.nlp(self.text)
+        self.doc = self.nlp(re.sub('\s+', ' ', self.text).strip())
         self.sent_ids = {s.start: i for i, s in enumerate(self.doc.sents)}
 
     def sentence_len(self):
@@ -138,7 +139,8 @@ class Document():
 
     def coref_resolution(self, n = 2, max_span = 10,
                          pos_types = ['DT','NN','NNP','NNPS','NNS','PRP','PRP$'],
-                         dependencies = ['dobj','nsubj','nsubjpass','pobj','poss']):
+                         dependencies = ['dobj','nsubj','nsubjpass','pobj','poss'],
+                         group = True):
 
         """
         Aggregates Coref Resolution Statistics:
@@ -152,14 +154,19 @@ class Document():
         :param pos_types: only compute coreferences if the main reference is one of these POS types
         :param dependencies: transition probabilities calculated for these roles; if the mention has
                             another role then uses 'other'
+        :param group: group dependencies into object (O), subject (S), other (O)
         """
 
 
         if n <2:
             raise ValueError("n must be at least 2")
 
-        #Sentence Lookup
-        # sent_ids = {s.start: i for i, s in enumerate(self.doc.sents)}
+        #Groups
+        Groups = defaultdict(lambda: 'Other')
+        Groups['dobj'] = 'O'
+        Groups['pobj'] = 'O'
+        Groups['nsubj'] = 'S'
+        Groups['nsubjpass'] = 'S'
 
         #List of coreference groups
         self.coref_list=[]
@@ -191,7 +198,9 @@ class Document():
                 for x in m.mentions:
                     dep = x.root.dep_
                     self.coref_roles.append(dep)
-                    if dep not in dependencies:
+                    if group:
+                        dep = Groups[dep]
+                    elif dep not in dependencies:
                         dep = 'other'
                     dependency.append(dep)
                     pos.append(x.root.tag_)
@@ -261,137 +270,6 @@ class Document():
             else:
                 self.coref_spans['corefspan_' + str(i)] = 0
 
-        #self.coref_spans = pd.DataFrame.from_dict(coref_spans, orient ='columns')
-
-    # def coref_resolution(self, n = 2, max_span = 10,
-    #                      pos_types = ['DT','NN','NNP','NNPS','NNS','PRP','PRP$'],
-    #                      dependencies = ['dobj','nsubj','nsubjpass','pobj','poss']):
-    #
-    #     """
-    #         Aggregates Coref Resolution Statistics:
-    #         1. Transition probabilities between mention's roles (dependency label)
-    #         2. Span of each mention (how many sentences apart is it referenced)
-    #         3. Number of mentions for each main reference
-    #         4. Number of sentences with a mention for each main reference
-    #
-    #         Params
-    #         ------
-    #         n: ngram size
-    #         max_span: calculate spans up to 'max_span' sentences
-    #         pos_types: only compute coreferences if the main reference is one of these POS types
-    #         dependencies: transition probabilities calculated for these roles; if the mention has
-    #                         another role then uses 'other'
-    #
-    #     """
-    #
-    #     if n <2:
-    #         raise ValueError("n must be at least 2")
-    #
-    #     #Sentence Lookup
-    #     sent_ids = {s.start: i for i, s in enumerate(self.doc.sents)}
-    #
-    #     #List of coreference groups
-    #     coref_list=[]
-    #
-    #     ### Keep various stats for summary ###
-    #
-    #     #Number of mentions per main reference
-    #     coref_mentions = []
-    #     #Number of unique sentences
-    #     coref_unq_sents = []
-    #     #POS of main coreferences
-    #     coref_pos_main = []
-    #     #Roles of each mention
-    #     coref_roles = []
-    #
-    #     #for m in self.doc._.coref_clusters:
-    #     for m in self.doc._.coref_clusters:
-    #         #Main reference
-    #         main_ref = m.main
-    #
-    #         #Only if main reference is in allowed pos_types continue
-    #         if m.main.root.tag_ in pos_types:
-    #
-    #             coref_pos_main.append(m.main.root.tag_)
-    #
-    #             sentence = [sent_ids[x.sent.start] for x in m.mentions]
-    #             dependency = []
-    #             pos = []
-    #             for x in m.mentions:
-    #                 dep = x.root.dep_
-    #                 coref_roles.append(dep)
-    #                 if dep not in dependencies:
-    #                     dep = 'other'
-    #                 dependency.append(dep)
-    #                 pos.append(x.root.tag_)
-    #
-    #             coref_list.append({'main': main_ref,
-    #                                'mentions': m.mentions,
-    #                                'sent_ids': np.array(sentence),
-    #                                'role': dependency,
-    #                                'pos': pos})
-    #
-    #     #Calculate spans and transitions
-    #     spans = []
-    #     doc_transitions = []
-    #     for cluster in coref_list:
-    #         first_sent = cluster['sent_ids'][0]
-    #         last_sent = cluster['sent_ids'][-1]
-    #         n_ref = len(cluster['mentions'])
-    #         unique_sents = np.unique(cluster['sent_ids'])
-    #         n_sents = len(unique_sents)
-    #
-    #         coref_mentions.append(n_ref)
-    #         coref_unq_sents.append(n_sents)
-    #
-    #         #Span of coreferences
-    #         spans.append(last_sent-first_sent)
-    #
-    #         #go to at least n sentences
-    #         end = np.maximum(first_sent + n, last_sent+1)
-    #
-    #         transitions = []
-    #         for s in range(first_sent, end):
-    #             if s not in unique_sents:
-    #                 transitions.append('_')
-    #             else:
-    #                 #Use first occurance of mention in sentence
-    #                 first_occur = np.where(cluster['sent_ids']==s)[0][0]
-    #                 transitions.append(cluster['role'][first_occur])
-    #
-    #         doc_transitions.append(transitions)
-    #
-    #     zip_ngrams = {}
-    #     for i in range(1,n+1):
-    #         zip_ngrams[i] = [zip(*[trans[k:] for k in range(i)]) for trans in doc_transitions]
-    #
-    #     ngrams = {}
-    #     for i in range(1,n+1):
-    #         ngrams[i] = [(ngram) for z in zip_ngrams[i] for ngram in z]
-    #
-    #     coref_counts = {}
-    #     for i in range(1,n+1):
-    #         coref_counts[i] = Counter(ngrams[i])
-    #
-    #     coref_prob = {}
-    #     for i in range(2, n+1):
-    #         count = coref_counts[i]
-    #         for roles in count:
-    #             coref_prob[' '.join(roles)] = count[roles]/coref_counts[i-1][roles[0:(i-1)]]
-    #
-    #     spans = np.array(spans)
-    #     spans,counts = np.unique(spans[spans<=max_span], return_counts = True)
-    #     total = counts.sum()
-    #     coref_spans = {}
-    #     for i in range(0, max_span+1):
-    #         if i in spans:
-    #             indx = np.where(spans == i)[0][0]
-    #             coref_spans['coref_span_'+str(i)] = counts[indx]/total
-    #         else:
-    #             coref_spans['coref_span_' + str(i)] = 0
-    #
-    #     #self.coref_spans = pd.DataFrame.from_dict(coref_spans, orient ='columns')
-
 
     def process_doc(self, word_lemma=True,
                     word_entities=False,
@@ -400,6 +278,7 @@ class Document():
                     coref_n=2,
                     coref_pos_types=['DT', 'NN', 'NNP', 'NNPS', 'NNS', 'PRP', 'PRP$'],
                     coref_dependencies=['dobj', 'nsubj', 'nsubjpass', 'pobj', 'poss'],
+                    coref_group = True,
                     passive_dependencies=['auxpass', 'agent', 'csubjpass', 'nsubjpass'],
                     active_dependencies=['cubj', 'nsubj']
                     ):
@@ -426,7 +305,8 @@ class Document():
         self.vocab_richness()
         self.coref_resolution(n =coref_n,
                               pos_types=coref_pos_types,
-                              dependencies=coref_dependencies)
+                              dependencies=coref_dependencies,
+                              group = coref_group)
         self.voice_passiveness()
 
 

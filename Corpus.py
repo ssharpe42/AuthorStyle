@@ -15,7 +15,9 @@ class Corpus():
 
     def __init__(self,
                  char_ngrams = (2,2),
+                 char_topk = 1000,
                  word_ngrams = (1,1),
+                 word_topk = 10000,
                  pos_ngrams = (1,1),
                  word_lemma=True,
                  word_entities=False,
@@ -25,12 +27,15 @@ class Corpus():
                  char_lower = False,
                  coref_n = 2,
                  coref_pos_types = ['DT', 'NN', 'NNP', 'NNPS', 'NNS', 'PRP', 'PRP$'],
-                 coref_dependencies = ['dobj', 'nsubj', 'nsubjpass', 'pobj', 'poss']):
+                 coref_dependencies = ['dobj', 'nsubj', 'nsubjpass', 'pobj', 'poss'],
+                 coref_group = True):
 
 
         #Parameters
         self.char_ngrams = char_ngrams
+        self.char_topk = char_topk
         self.word_ngrams = word_ngrams
+        self.word_topk = word_topk
         self.pos_ngrams = pos_ngrams
         self.word_lemma = word_lemma
         self.word_entities = word_entities
@@ -42,13 +47,14 @@ class Corpus():
         self.coref_n = coref_n
         self.coref_pos_types = coref_pos_types
         self.coref_dependencies = coref_dependencies
+        self.coref_group= coref_group
 
         self.documents = []
         self.word_ngrams = word_ngrams
         self.pos_ngrams = pos_ngrams
         self.char_vectorizer = CountVectorizer(analyzer = 'char',preprocessor=None if char_punct else self.preprocessor,
-                                               lowercase = char_lower,ngram_range=char_ngrams)
-        self.word_vectorizer = CountVectorizer( tokenizer=self.tokenization, ngram_range = word_ngrams)
+                                               lowercase = char_lower,ngram_range=char_ngrams,max_features=char_topk)
+        self.word_vectorizer = CountVectorizer( tokenizer=self.tokenization, ngram_range = word_ngrams, max_features=word_topk)
         self.pos_vectorizer = CountVectorizer(tokenizer=self.tokenization,ngram_range = pos_ngrams)
 
         self.char_vocab = {}
@@ -80,7 +86,8 @@ class Corpus():
                  pos_detailed = self.pos_detailed,
                  coref_n = self.coref_n,
                  coref_pos_types = self.coref_pos_types,
-                 coref_dependencies = self.coref_dependencies
+                 coref_dependencies = self.coref_dependencies,
+                 coref_group=self.coref_group
             )
 
         self.n_docs = len(self.documents)
