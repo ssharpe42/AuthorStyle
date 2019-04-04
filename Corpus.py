@@ -137,11 +137,22 @@ class Corpus():
     def lexical_features(self):
 
         self.lex_mat = pd.DataFrame({'sent_length':[np.mean(d.sent_lengths) for d in self.documents],
+                                     'sent_std': [np.std(d.sent_lengths) for d in self.documents],
                                      'word_length': [np.mean(d.word_lengths) for d in self.documents],
+                                     'word_std': [np.std(d.word_lengths) for d in self.documents],
                                      'vocab_richness': [d.VR for d in self.documents] })
 
         self.feature_sets['lex'] = self.lex_mat.columns.values
 
+    def voice_features(self):
+        
+        self.voice_mat = pd.DataFrame({"hattrick_freq" : [d.hattrick_freq for d in self.documents],
+                                       "agentless_freq" : [d.agentless_freq for d in self.documents],
+                                       "passive_desc_freq" : [d.passive_desc_freq for d in self.documents],
+                                       "no_active_freq" : [d.no_active_freq for d in self.documents]}).fillna(0)
+        
+        self.feature_sets['voice'] = self.voice_mat.columns.values
+        
     def build_data(self):
 
         self.fit_char_vectorizer()
@@ -149,9 +160,10 @@ class Corpus():
         self.fit_pos_vectorizer()
         self.lexical_features()
         self.coref_features()
+        self.voice_features()
 
         self.authors = pd.DataFrame({'author':[d.author for d in self.documents]})
-        self.X_ = pd.concat([self.char_mat, self.word_mat, self.pos_mat, self.lex_mat, self.coref_mat], axis=1)
+        self.X_ = pd.concat([self.char_mat, self.word_mat, self.pos_mat, self.lex_mat, self.coref_mat, self.voice_mat], axis = 1)
         self.feature_ids = np.array(range(self.X_.shape[1]))
         self.features = {f:indx for indx,f in enumerate(self.X_)}
         self.data = pd.concat([self.authors, self.X_], axis=1)
@@ -164,7 +176,7 @@ class Corpus():
     def generate_model_data(self, type = 'multiclass',
                             model_authors = [],
                             sampling = 'oversample',
-                            feature_sets = ['lex','coref','pos','word','char']):
+                            feature_sets = ['lex','coref','pos','word','char','voice']):
 
         features = []
         for f in feature_sets:
@@ -208,7 +220,6 @@ class Corpus():
 
             X_train = X_train[indx, :]
             y_train = y_train[indx, :]
-
 
         return X_train, X_val, X_test, y_train, y_val, y_test, encoder
 
