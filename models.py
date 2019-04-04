@@ -93,6 +93,7 @@ class Network():
             early_stopping = True,
             stop_patience = 10):
 
+
         net.model.compile(optimizer='adam', loss=self.loss, metrics=[self.loss, 'accuracy'])
 
         if early_stopping:
@@ -127,6 +128,31 @@ class Network():
 
 if __name__ == "__main__":
     import pickle
+    import numpy as np
+    import tensorflow as tf
+    import random as rn
+    import os
+
+
+    ########  SET FOR REPRODUCIBLE RESULTS #########
+
+    os.environ['PYTHONHASHSEED'] = '0'
+    # The below is necessary for starting Numpy generated random numbers in a well-defined initial state.
+    np.random.seed(42)
+    # The below is necessary for starting core Python generated random numbers in a well-defined state.
+    rn.seed(42)
+    # Force TensorFlow to use single thread.
+    session_conf = tf.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)
+    from keras import backend as K
+    # The below tf.set_random_seed() will make random number generation
+    # in the TensorFlow backend have a well-defined initial state
+    tf.set_random_seed(42)
+
+    sess = tf.Session(graph=tf.get_default_graph(), config=session_conf)
+    K.set_session(sess)
+
+    ################################################
+
 
     with open('test_corpus.pkl', 'rb') as f:
         corpus = pickle.load(f)
@@ -139,11 +165,11 @@ if __name__ == "__main__":
     net = Network(X_train,y_train,
                   X_val, y_val,
                   X_test, y_test,
-                  hidden = [200,200,200,200],
-                  dropout=[.6,.6,.6,.6],
+                  hidden = [100,100,100],
+                  dropout=[.6,.6,.6],
                   multiclass= y_train.shape[1]>1,
                   encoder = encoder)
 
     net.build_network()
-    net.fit(epochs=40)
-    net.predict_test()
+    net.fit(epochs=100)
+    print(net.predict_test())

@@ -6,12 +6,14 @@ import os
 # os.chdir('/Users/Sam/Desktop/School/Emp Meth of DS/FinalProject/AuthorStyle')
 nlp = spacy.load('en_coref_md')
 
-sample_data = pd.read_csv('16_authors_dataset.csv').sample(20)
+sample_data = pd.read_csv('16_authors_dataset.csv').sample(100)
 N = sample_data.shape[0]
 
 corpus_params = {'char_ngrams': (2,2),
-                 'word_ngrams': (1,1),
-                 'pos_ngrams':(1,1),
+                 'char_topk':200,
+                 'word_ngrams': (1,2),
+                 'word_topk':200,
+                 'pos_ngrams':(1,2),
                  'word_lemma':True,
                  'word_entities':False,
                  'word_punct':False,
@@ -20,7 +22,8 @@ corpus_params = {'char_ngrams': (2,2),
                  'char_lower':False,
                   'coref_n': 2,
                   'coref_pos_types' :['DT', 'NN', 'NNP', 'NNPS', 'NNS', 'PRP', 'PRP$'],
-                  'coref_dependencies':['dobj', 'nsubj', 'nsubjpass', 'pobj', 'poss']
+                  'coref_dependencies':['dobj', 'nsubj', 'nsubjpass', 'pobj', 'poss'],
+                 'coref_group': True
 }
 
 corpus = Corpus(**corpus_params)
