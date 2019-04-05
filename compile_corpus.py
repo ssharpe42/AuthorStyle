@@ -6,7 +6,7 @@ import os
 # os.chdir('/Users/Sam/Desktop/School/Emp Meth of DS/FinalProject/AuthorStyle')
 nlp = spacy.load('en_coref_md')
 
-sample_data = pd.read_csv('16_authors_dataset.csv').sample(100)
+sample_data = pd.read_csv('data/16_authors_dataset.csv').sample(200)
 N = sample_data.shape[0]
 
 corpus_params = {'char_ngrams': (2,2),
@@ -26,7 +26,7 @@ corpus_params = {'char_ngrams': (2,2),
                  'coref_group': True
 }
 
-corpus = Corpus(**corpus_params)
+corpus = Corpus()
 for i in range(N):
     print('Loading document {} of {}'.format(i , N))
     doc = Document(text = sample_data.body.iloc[i],
@@ -34,14 +34,29 @@ for i in range(N):
                    category = sample_data.primary_tags.iloc[i],
                    spacy_model=nlp)
     corpus.documents.append(doc)
-    # [print(token, token.dep_) for token in doc.doc]
-    # [print(chunk.text, chunk.root.text, chunk.root.dep_) for chunk in doc.doc.noun_chunks]
 
-corpus.init_docs()
+
+corpus.init_docs(**corpus_params)
 corpus.build_data()
 
 
-corpus.save('test_corpus.pkl')
+corpus.save('full_corpus.pkl')
 #
 # with open('test_corpus.pickle', 'wb') as f:
 #     pickle.dump(corpus, f, protocol=pickle.HIGHEST_PROTOCOL)
+#
+# import re
+# import matplotlib.pyplot as plt
+# coreftrans = corpus.data.groupby('author').mean().filter(like='coreftrans').reset_index()
+# coreftrans.columns = [re.sub('coreftrans_','',x) for x in coreftrans.columns]
+# #trans = coreftrans.filter(like = ' ').columns
+# coreftransmats = {author: np.zeros((4,4)) for author in coreftrans.author}
+#
+# coref_map = {'O':0, 'S':1, 'Other':2,'_':3}
+#
+# for i in range(coreftrans.shape[0]):
+#     df=coreftrans.iloc[i]
+#     author = df['author']
+#     for c in df.index[df.index!='author']:
+#         m1,m2 = c.split(' ')
+#         coreftransmats[author][coref_map[m1],coref_map[m2]] = df[c]
