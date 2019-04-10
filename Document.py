@@ -1,7 +1,7 @@
 import numpy as np
 import spacy
 import nltk
-from collections import Counter
+from collections import Counter, defaultdict
 import pandas as pd
 
 #Useful links
@@ -23,6 +23,7 @@ class Document():
         self.nlp = spacy_model
         self.doc = self.nlp(self.text)
         self.sent_ids = {s.start: i for i, s in enumerate(self.doc.sents)}
+        self.passives = None
 
     def sentence_len(self):
 
@@ -112,12 +113,18 @@ class Document():
 
         return True
 
-
-    def voice_passiveness(self):
-
+    def voice_passiveness(self, passive_mapper):
         sentence_counter = Counter()
+        word_counter = Counter()
         for sentence in self.doc.sents:
             deps = {token.dep_ for token in sentence}
+
+            print([token.text for token in sentence if token.dep_ == "auxpass"])
+            passives = [passive_mapper[token.text.lower()] for token in sentence if token.dep_ == "auxpass"]
+            print(passives)
+            for passive in passives:
+                word_counter[passive] += 1
+
             sentence_counter["s"] += 1
             if Document.membership({"auxpass", "agent", ("nsubjpass", "csubjpass")}, {}, deps):
                 sentence_counter["hattrick"] += 1
@@ -128,12 +135,17 @@ class Document():
             if Document.membership({}, {"nsubj", "csubj"}, deps):
                 sentence_counter["no_active"] += 1
         doc_length = sentence_counter["s"]
+        passive_count = sum(word_counter.values())
         freqs = {k : v / doc_length for k, v in sentence_counter.items()}
+        word_freqs = {k : v / passive_count for k, v in word_counter.items()}
 
         self.hattrick_freq = freqs["hattrick"] if "hattrick" in freqs else 0
         self.agentless_freq = freqs["agentless"] if "agentless" in freqs else 0
         self.passive_desc_freq = freqs["passive_description"] if "passive_description" in freqs else 0
         self.no_active_freq = freqs["no_active"] if "no_active" in freqs else 0
+        self.get_freq = word_freqs["GET"] if "GET" in word_freqs else 0
+        self.be_freq = word_freqs["BE"] if "BE" in word_freqs else 0
+        self.other_freq = word_freqs["OTHER"] if "OTHER" in word_freqs else 0
 
 
     def coref_resolution(self, n = 2, max_span = 10,
@@ -401,7 +413,8 @@ class Document():
                     coref_pos_types=['DT', 'NN', 'NNP', 'NNPS', 'NNS', 'PRP', 'PRP$'],
                     coref_dependencies=['dobj', 'nsubj', 'nsubjpass', 'pobj', 'poss'],
                     passive_dependencies=['auxpass', 'agent', 'csubjpass', 'nsubjpass'],
-                    active_dependencies=['cubj', 'nsubj']
+                    active_dependencies=['cubj', 'nsubj'],
+                    passive_mapper=None
                     ):
 
         """
@@ -427,6 +440,13 @@ class Document():
         self.coref_resolution(n =coref_n,
                               pos_types=coref_pos_types,
                               dependencies=coref_dependencies)
-        self.voice_passiveness()
+        if (passive_mapper is None):
+            bes = {"was", "is", "am", "are", "be", "been", "being", "were", "'s", "'re", "'m", "’re", "’s", "’m"}
+            gets = {"get", "got", "gotten", "gets"}
+            passive_mapper = defaultdict(lambda : "OTHER")
+            passive_mapper.update({word : "BE" for word in bes})
+            passive_mapper.update({word: "GET" for word in gets})
+
+        self.voice_passiveness(passive_mapper)
 
 

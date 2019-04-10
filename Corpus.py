@@ -133,7 +133,11 @@ class Corpus():
         self.voice_mat = pd.DataFrame({"hattrick_freq" : [d.hattrick_freq for d in self.documents],
                                        "agentless_freq" : [d.agentless_freq for d in self.documents],
                                        "passive_desc_freq" : [d.passive_desc_freq for d in self.documents],
-                                       "no_active_freq" : [d.no_active_freq for d in self.documents]}).fillna(0)
+                                       "no_active_freq" : [d.no_active_freq for d in self.documents],
+                                       "get_freq" : [d.get_freq for d in self.documents],
+                                       "be_freq" : [d.be_freq for d in self.documents],
+                                       "other_freq" : [d.other_freq for d in self.documents]
+                                       }).fillna(0)
 
     def build_data(self):
 
