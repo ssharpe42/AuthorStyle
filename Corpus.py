@@ -63,7 +63,6 @@ class Corpus():
     def init_docs(self):
 
         """Initialize and process documents"""
-
         for i in range(len(self.documents)):
             print('Processing doc {} of {}'.format(i, len(self.documents)))
             self.documents[i].process_doc(

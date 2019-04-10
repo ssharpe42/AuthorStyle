@@ -3,6 +3,7 @@ import spacy
 import nltk
 from collections import Counter, defaultdict
 import pandas as pd
+import re
 
 #Useful links
 # Span class: https://spacy.io/api/span - Attribute section
@@ -14,16 +15,28 @@ class Document():
                  text = '',
                  author = '',
                  category = '',
-                 spacy_model = spacy.load('en_core_web_sm')
+                 spacy_model = spacy.load('en_core_web_sm',),
+                 quotes = "STAR"
     ):
 
         self.category = category
         self.author = author
-        self.text = text
+        self.quotes = quotes
+        self.text = self.handle_quotes(text)
+        # print(self.text)
         self.nlp = spacy_model
         self.doc = self.nlp(self.text)
         self.sent_ids = {s.start: i for i, s in enumerate(self.doc.sents)}
         self.passives = None
+
+    def handle_quotes(self, text):
+        if self.quotes == "STAR":
+            replacer = lambda m : '"' + re.sub(r'\w+', lambda sub_m : "*"*len(sub_m.group(0)), m.group(1)) + '"'
+            return re.sub(re.compile(r'[“"](.*?)[”"]'), replacer, text)
+        elif self.quotes == "TAG":
+            return re.sub(re.compile(r'[“"](.*?)[”"]'), '"_QUOTE_"', text)
+        else:
+            return text
 
     def sentence_len(self):
 
@@ -118,10 +131,7 @@ class Document():
         word_counter = Counter()
         for sentence in self.doc.sents:
             deps = {token.dep_ for token in sentence}
-
-            print([token.text for token in sentence if token.dep_ == "auxpass"])
             passives = [passive_mapper[token.text.lower()] for token in sentence if token.dep_ == "auxpass"]
-            print(passives)
             for passive in passives:
                 word_counter[passive] += 1
 
