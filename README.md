@@ -22,7 +22,7 @@
 ```
 git clone https://github.com/huggingface/neuralcoref.git
 cd neuralcoref
-pip install -e 
+pip install -e .
 cd ..
 rm -r neuralcoref
 ```
