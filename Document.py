@@ -15,15 +15,28 @@ class Document():
                  text = '',
                  author = '',
                  category = '',
-                 spacy_model = spacy.load('en_core_web_sm')
+                 spacy_model = spacy.load('en_core_web_sm',),
+                 quotes = "STAR"
     ):
 
         self.category = category
         self.author = author
-        self.text = text
+        self.quotes = quotes
+        self.text = self.handle_quotes(text)
+        # print(self.text)
         self.nlp = spacy_model
         self.doc = self.nlp(re.sub('\s+', ' ', self.text).strip())
         self.sent_ids = {s.start: i for i, s in enumerate(self.doc.sents)}
+        self.passives = None
+
+    def handle_quotes(self, text):
+        if self.quotes == "STAR":
+            replacer = lambda m : '"' + re.sub(r'\w+', lambda sub_m : "*"*len(sub_m.group(0)), m.group(1)) + '"'
+            return re.sub(re.compile(r'[“"](.*?)[”"]'), replacer, text)
+        elif self.quotes == "TAG":
+            return re.sub(re.compile(r'[“"](.*?)[”"]'), '"_QUOTE_"', text)
+        else:
+            return text
 
     def sentence_len(self):
 
@@ -113,12 +126,15 @@ class Document():
 
         return True
 
-
-    def voice_passiveness(self):
-
+    def voice_passiveness(self, passive_mapper):
         sentence_counter = Counter()
+        word_counter = Counter()
         for sentence in self.doc.sents:
             deps = {token.dep_ for token in sentence}
+            passives = [passive_mapper[token.text.lower()] for token in sentence if token.dep_ == "auxpass"]
+            for passive in passives:
+                word_counter[passive] += 1
+
             sentence_counter["s"] += 1
             if Document.membership({"auxpass", "agent", ("nsubjpass", "csubjpass")}, {}, deps):
                 sentence_counter["hattrick"] += 1
@@ -129,12 +145,17 @@ class Document():
             if Document.membership({}, {"nsubj", "csubj"}, deps):
                 sentence_counter["no_active"] += 1
         doc_length = sentence_counter["s"]
+        passive_count = sum(word_counter.values())
         freqs = {k : v / doc_length for k, v in sentence_counter.items()}
+        word_freqs = {k : v / passive_count for k, v in word_counter.items()}
 
         self.hattrick_freq = freqs["hattrick"] if "hattrick" in freqs else 0
         self.agentless_freq = freqs["agentless"] if "agentless" in freqs else 0
         self.passive_desc_freq = freqs["passive_description"] if "passive_description" in freqs else 0
         self.no_active_freq = freqs["no_active"] if "no_active" in freqs else 0
+        self.get_freq = word_freqs["GET"] if "GET" in word_freqs else 0
+        self.be_freq = word_freqs["BE"] if "BE" in word_freqs else 0
+        self.other_freq = word_freqs["OTHER"] if "OTHER" in word_freqs else 0
 
 
     def coref_resolution(self, n = 2, max_span = 10,
@@ -280,7 +301,8 @@ class Document():
                     coref_dependencies=['dobj', 'nsubj', 'nsubjpass', 'pobj', 'poss'],
                     coref_group = True,
                     passive_dependencies=['auxpass', 'agent', 'csubjpass', 'nsubjpass'],
-                    active_dependencies=['cubj', 'nsubj']
+                    active_dependencies=['cubj', 'nsubj'],
+                    passive_mapper=None
                     ):
 
         """
@@ -307,6 +329,13 @@ class Document():
                               pos_types=coref_pos_types,
                               dependencies=coref_dependencies,
                               group = coref_group)
-        self.voice_passiveness()
+        if (passive_mapper is None):
+            bes = {"was", "is", "am", "are", "be", "been", "being", "were", "'s", "'re", "'m", "’re", "’s", "’m"}
+            gets = {"get", "got", "gotten", "gets"}
+            passive_mapper = defaultdict(lambda : "OTHER")
+            passive_mapper.update({word : "BE" for word in bes})
+            passive_mapper.update({word: "GET" for word in gets})
+
+        self.voice_passiveness(passive_mapper)
 
 

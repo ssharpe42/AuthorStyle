@@ -63,7 +63,6 @@ class Corpus():
                                                max_features=word_topk)
         self.pos_vectorizer = CountVectorizer(tokenizer=self.tokenization, ngram_range=pos_ngrams)
 
-
         for i in range(len(self.documents)):
             print('Processing doc {} of {}'.format(i, len(self.documents)))
             self.documents[i].process_doc(
@@ -149,12 +148,17 @@ class Corpus():
 
     def voice_features(self):
 
-        self.voice_mat = pd.DataFrame({"hattrick_freq": [d.hattrick_freq for d in self.documents],
-                                       "agentless_freq": [d.agentless_freq for d in self.documents],
-                                       "passive_desc_freq": [d.passive_desc_freq for d in self.documents],
-                                       "no_active_freq": [d.no_active_freq for d in self.documents]}).fillna(0)
+        self.voice_mat = pd.DataFrame({"hattrick_freq" : [d.hattrick_freq for d in self.documents],
+                                       "agentless_freq" : [d.agentless_freq for d in self.documents],
+                                       "passive_desc_freq" : [d.passive_desc_freq for d in self.documents],
+                                       "no_active_freq" : [d.no_active_freq for d in self.documents],
+                                       "get_freq" : [d.get_freq for d in self.documents],
+                                       "be_freq" : [d.be_freq for d in self.documents],
+                                       "other_freq" : [d.other_freq for d in self.documents]
+                                       }).fillna(0)
 
         self.feature_sets['voice'] = self.voice_mat.columns.values
+
 
     def build_data(self):
 
