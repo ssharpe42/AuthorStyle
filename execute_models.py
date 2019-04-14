@@ -5,7 +5,7 @@ import random as rn
 import os
 from Document import *
 from Corpus import *
-from models import Network
+from models import Network, SVM
 
 ########  SET FOR REPRODUCIBLE RESULTS #########
 
@@ -32,18 +32,44 @@ with open('data/full_corpus.pkl', 'rb') as f:
 
 print(corpus.authors['author'].iloc[[0,100]].values)
 
-model_data  = corpus.generate_model_data(type='onevsone',
-                                        model_authors = corpus.authors['author'].iloc[[0,100]].values,
+# model_data  = corpus.generate_model_data(type='onevsone',
+#                                         model_authors = corpus.authors['author'].iloc[[0,100]].values,
+#                                         sampling = 'oversample',
+#                                         #feature_sets = ['lex', 'pos', 'word', 'char']
+#                                          feature_sets = ['voice', 'coref']
+#                                                  )
+
+# model_data  = corpus.generate_model_data(type='multiclass',
+#                                         model_authors = [],
+#                                         sampling = 'oversample',
+#                                         feature_sets = ['lex', 'pos', 'word', 'char','voice','coref'],
+#                                        # feature_sets = [ 'lex'],
+#                                         encoding_type = 'onehot')
+#
+#
+# net = Network(**model_data)
+#
+# net.build_network( hidden = [1000],
+#                    dropout=[.1],
+#                    kernel_regulizer=None,
+#                    bias_regulizer=None)
+# net.fit(epochs=500, stop_patience=10, batch_size=50, optimizer=tf.train.AdamOptimizer())
+# print(net.predict_test())
+
+
+
+
+model_data  = corpus.generate_model_data(type='multiclass',
+                                        model_authors = [],
                                         sampling = 'oversample',
-                                        #feature_sets = ['lex', 'pos', 'word', 'char']
-                                         feature_sets = ['voice', 'coref']
-                                                 )
+                                        #feature_sets = ['lex', 'pos', 'word', 'char','voice','coref'],
+                                        feature_sets = [ 'voice','coref'],
+                                        encoding_type = 'label')
 
-net = Network(**model_data)
 
-net.build_network( hidden = [1000],
-                   dropout=[.1],
-                   kernel_regulizer=None,
-                   bias_regulizer=None)
-net.fit(epochs=500, stop_patience=20, batch_size=50, optimizer=tf.train.AdamOptimizer())
-print(net.predict_test())
+svm = SVM(**model_data)
+
+svm.tune()
+print(svm.model)
+svm.fit_svm()
+#print(net.predict_test())

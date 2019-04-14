@@ -1,12 +1,18 @@
 from Document import *
 from Corpus import *
+import neuralcoref
+import spacy
 import json
 import os
 
 # os.chdir('/Users/Sam/Desktop/School/Emp Meth of DS/FinalProject/AuthorStyle')
-nlp = spacy.load('en_coref_md')
+nlp = spacy.load('en_core_web_md')
 
-sample_data = pd.read_csv('data/16_authors_dataset.csv').sample(200)
+# Add neural coref to SpaCy's pipe
+neuralcoref.add_to_pipe(nlp)
+
+sample_data = pd.concat([pd.read_csv('data/08-11_16_authors_dataset.csv'),
+                         pd.read_csv('data/16_authors_dataset.csv')], axis = 0).sample(10)
 N = sample_data.shape[0]
 
 corpus_params = {'char_ngrams': (2,2),

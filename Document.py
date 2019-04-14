@@ -15,7 +15,7 @@ class Document():
                  text = '',
                  author = '',
                  category = '',
-                 spacy_model = spacy.load('en_core_web_sm',),
+                 spacy_model = None,
                  quotes = "STAR"
     ):
 
@@ -27,7 +27,14 @@ class Document():
         self.nlp = spacy_model
         self.doc = self.nlp(re.sub('\s+', ' ', self.text).strip())
         self.sent_ids = {s.start: i for i, s in enumerate(self.doc.sents)}
-        self.passives = None
+
+        #Default passive mapper
+        bes = {"was", "is", "am", "are", "be", "been", "being", "were", "'s", "'re", "'m", "’re", "’s", "’m"}
+        gets = {"get", "got", "gotten", "gets"}
+        self.passive_mapper = defaultdict(lambda: "OTHER")
+        self.passive_mapper.update({word: "BE" for word in bes})
+        self.passive_mapper.update({word: "GET" for word in gets})
+
 
     def handle_quotes(self, text):
         if self.quotes == "STAR":
@@ -300,8 +307,6 @@ class Document():
                     coref_pos_types=['DT', 'NN', 'NNP', 'NNPS', 'NNS', 'PRP', 'PRP$'],
                     coref_dependencies=['dobj', 'nsubj', 'nsubjpass', 'pobj', 'poss'],
                     coref_group = True,
-                    passive_dependencies=['auxpass', 'agent', 'csubjpass', 'nsubjpass'],
-                    active_dependencies=['cubj', 'nsubj'],
                     passive_mapper=None
                     ):
 
@@ -329,12 +334,9 @@ class Document():
                               pos_types=coref_pos_types,
                               dependencies=coref_dependencies,
                               group = coref_group)
+
         if (passive_mapper is None):
-            bes = {"was", "is", "am", "are", "be", "been", "being", "were", "'s", "'re", "'m", "’re", "’s", "’m"}
-            gets = {"get", "got", "gotten", "gets"}
-            passive_mapper = defaultdict(lambda : "OTHER")
-            passive_mapper.update({word : "BE" for word in bes})
-            passive_mapper.update({word: "GET" for word in gets})
+            passive_mapper = self.passive_mapper
 
         self.voice_passiveness(passive_mapper)
 

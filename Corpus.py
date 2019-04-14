@@ -8,7 +8,7 @@ from imblearn.over_sampling import RandomOverSampler
 from sklearn.feature_extraction.text import CountVectorizer
 from spacy.lang.en.stop_words import STOP_WORDS 
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelBinarizer
+from sklearn.preprocessing import LabelBinarizer,  LabelEncoder
 from Document import Document
 
 class Corpus():
@@ -33,7 +33,8 @@ class Corpus():
                   coref_n=2,
                   coref_pos_types=['DT', 'NN', 'NNP', 'NNPS', 'NNS', 'PRP', 'PRP$'],
                   coref_dependencies=['dobj', 'nsubj', 'nsubjpass', 'pobj', 'poss'],
-                  coref_group=True):
+                  coref_group=True,
+                  passive_mapper=None):
 
         """Initialize and process documents"""
 
@@ -53,6 +54,7 @@ class Corpus():
         self.coref_pos_types = coref_pos_types
         self.coref_dependencies = coref_dependencies
         self.coref_group = coref_group
+        self.passive_mapper = passive_mapper
 
         self.word_ngrams = word_ngrams
         self.pos_ngrams = pos_ngrams
@@ -72,7 +74,8 @@ class Corpus():
                 coref_n=self.coref_n,
                 coref_pos_types=self.coref_pos_types,
                 coref_dependencies=self.coref_dependencies,
-                coref_group=self.coref_group
+                coref_group=self.coref_group,
+                passive_mapper=self.passive_mapper
             )
 
         self.n_docs = len(self.documents)
@@ -97,6 +100,10 @@ class Corpus():
         self.char_vocab = self.char_vectorizer.get_feature_names()
         char_counts = self.char_vectorizer.fit_transform(doc_text)
         self.char_mat = pd.DataFrame(char_counts.toarray(), columns=self.char_vocab)
+
+        #Normalize to probabilities
+        self.char_mat = self.char_mat.div(self.char_mat.sum(axis = 1), axis = 0)
+
         self.feature_sets['char'] = self.char_vocab
 
     def fit_word_vectorizer(self):
@@ -107,6 +114,11 @@ class Corpus():
         self.word_vocab = self.word_vectorizer.get_feature_names()
         word_counts = self.word_vectorizer.fit_transform(clean_doc_text)
         self.word_mat = pd.DataFrame(word_counts.toarray(), columns=self.word_vocab)
+
+        # Normalize to probabilities
+        self.word_mat = self.word_mat.div(self.word_mat.sum(axis=1), axis=0)
+
+
         self.feature_sets['word'] = self.word_vocab
 
     def fit_pos_vectorizer(self):
@@ -117,6 +129,10 @@ class Corpus():
         self.pos_vocab = self.pos_vectorizer.get_feature_names()
         pos_counts = self.pos_vectorizer.fit_transform(clean_doc_pos)
         self.pos_mat = pd.DataFrame(pos_counts.toarray(), columns=self.pos_vocab)
+
+        # Normalize to probabilities
+        self.pos_mat = self.pos_mat.div(self.pos_mat.sum(axis=1), axis=0)
+
         self.feature_sets['pos'] = self.pos_vocab
 
     # ....etc
@@ -141,8 +157,8 @@ class Corpus():
                                      'sent_std': [np.std(d.sent_lengths) for d in self.documents],
                                      'word_length': [np.mean(d.word_lengths) for d in self.documents],
                                      'word_std': [np.std(d.word_lengths) for d in self.documents],
-                                     'pct_doc_stopword': [ sum([1 if w in STOP_WORDS for w in d.words])/len(d.words) for d in self.documents], 
-                                     'pct_vocab_stopword': [ len(set(d.words) & STOPWORDS)/len(set(d.words)) for d in self.documents],
+                                     'pct_doc_stopword': [np.sum([1 for w in d.words if w in STOP_WORDS ])/len(d.words) for d in self.documents],
+                                     'pct_vocab_stopword': [ len(set(d.words) & STOP_WORDS)/len(set(d.words)) for d in self.documents],
                                      'vocab_richness': [d.VR for d in self.documents] })
 
         self.feature_sets['lex'] = self.lex_mat.columns.values
@@ -177,14 +193,19 @@ class Corpus():
         self.features = {f: indx for indx, f in enumerate(self.X_)}
         self.data = pd.concat([self.authors, self.X_], axis=1)
 
-        self.encoder_ = LabelBinarizer()
-        self.y_ = self.encoder_.fit_transform(self.authors.values)
         self.X_ = self.X_.values
 
     def generate_model_data(self, type='multiclass',
                             model_authors=[],
                             sampling='oversample',
-                            feature_sets=['lex', 'coref', 'pos', 'word', 'char', 'voice']):
+                            feature_sets=['lex', 'coref', 'pos', 'word', 'char', 'voice'],
+                            encoding_type = 'onehot'):
+
+        if encoding_type == 'onehot':
+            encoder = LabelBinarizer()
+        else:
+            encoder = LabelEncoder()
+
 
         features = []
         for f in feature_sets:
@@ -197,7 +218,6 @@ class Corpus():
         # Type is one of 'multiclass' or 'onevsone' or 'onevsall'
         if type == 'onevsone':
 
-            encoder = LabelBinarizer()
             author_indx = np.where(self.authors.isin(model_authors))[0]
             X = X[author_indx]
             authors = self.authors.iloc[author_indx]
@@ -205,7 +225,6 @@ class Corpus():
 
         elif type == 'onevsall':
 
-            encoder = LabelBinarizer()
             author_indx = ~self.authors.isin(model_authors)
             authors = self.authors.copy()
             authors[author_indx] = 'Other'
@@ -213,9 +232,8 @@ class Corpus():
 
         elif type == 'multiclass':
 
-            encoder = self.encoder_
             authors = self.authors
-            y = self.y_
+            y = encoder.fit_transform(authors)
 
         X_train, X_val, y_train, y_val, author_train, author_val = train_test_split(X, y, authors, test_size=.4,
                                                                                     random_state=42)
@@ -223,11 +241,15 @@ class Corpus():
                                                                                  random_state=42)
 
         if sampling == 'oversample':
+
             ros = RandomOverSampler(sampling_strategy='not majority', random_state=42, return_indices=True)
             _, _, indx = ros.fit_resample(X_train, y_train)
 
             X_train = X_train[indx, :]
-            y_train = y_train[indx, :]
+            if encoding_type=='onehot':
+                y_train = y_train[indx, :]
+            else:
+                y_train = y_train[indx]
 
         return {'X_train':X_train, 'X_val':X_val,'X_test':X_test,'y_train': y_train,'y_val':y_val,'y_test':y_test,'encoder':encoder}
 

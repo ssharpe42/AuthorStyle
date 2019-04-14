@@ -1,13 +1,13 @@
 from Corpus import *
 import numpy as np
-from sklearn.model_selection import train_test_split, GridSearchCV, cross_val_score
+from sklearn.model_selection import train_test_split,RandomizedSearchCV
 from sklearn import preprocessing
 from sklearn.metrics import accuracy_score, f1_score, log_loss, precision_score, recall_score
 from sklearn.pipeline import make_pipeline
 
 ### SVM Imports ###
-from sklearn import svm
-
+from sklearn.svm import SVC
+from sklearn.preprocessing import LabelEncoder
 
 ### NN Imports ###
 import tensorflow as tf
@@ -22,6 +22,56 @@ from keras.layers import (
 )
 from AMSGrad import AMSGrad
 from keras.callbacks import EarlyStopping, ModelCheckpoint,LearningRateScheduler,Callback
+
+
+class SVM():
+
+    def __init__(self,
+                 X_train,y_train,
+                 X_val, y_val,
+                 X_test, y_test,
+                 encoder=None):
+
+        self.X = X_train
+        self.X_val = X_val
+        self.X_test = X_test
+        self.y = y_train
+        self.y_val = y_val
+        self.y_test = y_test
+        self.encoder = encoder
+        self.model = SVC(probability=True)
+
+    def tune(self):
+
+        params = {'kernel':['rbf'],'gamma':[1, .5, .2, .1, 1e-3, 1e-4],
+                  'C':[.5,1,2,5,8,10,15,20,25,30,50,100]}
+
+        self.tuner = RandomizedSearchCV(self.model,
+                                        param_distributions=params,
+                                        n_iter=300,
+                                        cv = 4,
+                                        #scoring='neg_log_loss',
+                                        verbose = 3)
+
+        self.tuner.fit(self.X, self.y)
+        self.model =  SVC(**self.tuner.best_params_)
+
+    def fit_svm(self):
+
+        self.model = SVC()
+        self.model.fit(self.X, self.y)
+
+    def predict_test(self):
+
+        self.y_pred = self.model.predict(self.X_test)
+
+        self.y_pred_text = self.encoder.inverse_transform(self.y_pred)
+        self.y_true_text = self.encoder.inverse_transform(self.y_test)
+
+        return {'y_true':self.y_test, 'y_pred':self.y_pred,
+                'y_true_text':self.y_true_text,'y_pred_text':self.y_pred_text}
+
+
 
 class Network():
 
@@ -177,8 +227,8 @@ if __name__ == "__main__":
     net = Network(X_train,y_train,
                   X_val, y_val,
                   X_test, y_test,
-                  hidden = [100,100,100],
-                  dropout=[.6,.6,.6],
+                  hidden = [1000],
+                  dropout=[.1],
                   multiclass= y_train.shape[1]>1,
                   encoder = encoder)
 
