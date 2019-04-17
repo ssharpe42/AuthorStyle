@@ -7,7 +7,7 @@ import pandas as pd
 from imblearn.over_sampling import RandomOverSampler
 from sklearn.feature_extraction.text import CountVectorizer
 from spacy.lang.en.stop_words import STOP_WORDS 
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, StratifiedKFold
 from sklearn.preprocessing import LabelBinarizer,  LabelEncoder
 from Document import Document
 
@@ -147,6 +147,8 @@ class Corpus():
                                             np.mean(np.array(d.coref_mentions) / np.array(d.coref_unq_sents)) for d in
                                             self.documents]})
 
+        self.coref_misc.fillna(0)
+
         self.coref_mat = pd.concat([self.coref_prob, self.coref_spans, self.coref_misc], axis=1)
 
         self.feature_sets['coref'] = self.coref_mat.columns.values
@@ -197,7 +199,6 @@ class Corpus():
 
     def generate_model_data(self, type='multiclass',
                             model_authors=[],
-                            sampling='oversample',
                             feature_sets=['lex', 'coref', 'pos', 'word', 'char', 'voice'],
                             encoding_type = 'onehot'):
 
@@ -235,23 +236,60 @@ class Corpus():
             authors = self.authors
             y = encoder.fit_transform(authors)
 
-        X_train, X_val, y_train, y_val, author_train, author_val = train_test_split(X, y, authors, test_size=.4,
-                                                                                    random_state=42)
-        X_val, X_test, y_val, y_test, author_val, author_test = train_test_split(X_val, y_val, author_val, test_size=.4,
-                                                                                 random_state=42)
+        success = False
+        while not success:
+            try:
+                #Split into k folds
+                kf = KFold(n_splits=5, shuffle = True)
+                train_indx = []
+                test_indx = []
+                for train, test in kf.split(X, y):
+                    train_indx.append(train)
+                    test_indx.append(test)
 
-        if sampling == 'oversample':
+                data_dict = {'X_train':[],
+                             'X_val':[],
+                             'X_test':[],
+                             'y_train': [],
+                             'y_val':[],
+                             'y_test':[],
+                             'encoder':encoder}
 
-            ros = RandomOverSampler(sampling_strategy='not majority', random_state=42, return_indices=True)
-            _, _, indx = ros.fit_resample(X_train, y_train)
+                for k in range(5):
+                    X_train, X_val, y_train, y_val, author_train, author_val = train_test_split(X[train_indx[k]], y[train_indx[k]],
+                                                                                                authors.iloc[train_indx[k]],
+                                                                                                test_size=.2,
+                                                                                                random_state=42)
 
-            X_train = X_train[indx, :]
-            if encoding_type=='onehot':
-                y_train = y_train[indx, :]
-            else:
-                y_train = y_train[indx]
+                    X_test = X[test_indx[k]]
+                    y_test = y[test_indx[k]]
 
-        return {'X_train':X_train, 'X_val':X_val,'X_test':X_test,'y_train': y_train,'y_val':y_val,'y_test':y_test,'encoder':encoder}
+                    ros = RandomOverSampler(sampling_strategy='not majority', random_state=42, return_indices=True)
+
+                    _, _, indx = ros.fit_resample(X_train, y_train)
+                    X_train = X_train[indx]
+                    y_train = y_train[indx]
+
+                    _, _, indx = ros.fit_resample(X_val, y_val)
+                    X_val = X_val[indx]
+                    y_val = y_val[indx]
+
+                    _, _, indx = ros.fit_resample(X_test, y_test)
+                    X_test = X_test[indx]
+                    y_test = y_test[indx]
+
+                    data_dict['X_train'].append(X_train)
+                    data_dict['X_val'].append(X_val)
+                    data_dict['X_test'].append(X_test)
+                    data_dict['y_train'].append(y_train)
+                    data_dict['y_val'].append(y_val)
+                    data_dict['y_test'].append(y_test)
+
+                    success = True
+            except:
+                pass
+
+        return data_dict
 
     def save(self, filename):
         # Cant pickle spacy docs
