@@ -39,18 +39,18 @@ class SVM():
         self.y_val = y_val
         self.y_test = y_test
         self.encoder = encoder
-        self.model = SVC(probability=True)
+        self.model = SVC(kernel='rbf', probability=True)
 
-    def tune(self):
+    def tune(self, n_iter = 100, cv = 4):
 
         params = {'kernel':['rbf'],'gamma':[1, .5, .2, .1, 1e-3, 1e-4],
                   'C':[.5,1,2,5,8,10,15,20,25,30,50,100]}
 
         self.tuner = RandomizedSearchCV(self.model,
                                         param_distributions=params,
-                                        n_iter=300,
-                                        cv = 4,
-                                        #scoring='neg_log_loss',
+                                        n_iter=n_iter,
+                                        cv = cv,
+                                        scoring='neg_log_loss',
                                         verbose = 3)
 
         self.tuner.fit(self.X, self.y)

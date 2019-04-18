@@ -7,7 +7,7 @@ import pandas as pd
 from imblearn.over_sampling import RandomOverSampler
 from sklearn.feature_extraction.text import CountVectorizer
 from spacy.lang.en.stop_words import STOP_WORDS 
-from sklearn.model_selection import train_test_split, StratifiedKFold
+from sklearn.model_selection import train_test_split, KFold
 from sklearn.preprocessing import LabelBinarizer,  LabelEncoder
 from Document import Document
 
@@ -147,7 +147,7 @@ class Corpus():
                                             np.mean(np.array(d.coref_mentions) / np.array(d.coref_unq_sents)) for d in
                                             self.documents]})
 
-        self.coref_misc.fillna(0)
+        self.coref_misc = self.coref_misc.fillna(0)
 
         self.coref_mat = pd.concat([self.coref_prob, self.coref_spans, self.coref_misc], axis=1)
 
@@ -285,8 +285,9 @@ class Corpus():
                     data_dict['y_val'].append(y_val)
                     data_dict['y_test'].append(y_test)
 
-                    success = True
+                success = True
             except:
+                print('Unable to get enough samples in one fold')
                 pass
 
         return data_dict

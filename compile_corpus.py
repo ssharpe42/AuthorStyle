@@ -12,7 +12,9 @@ nlp = spacy.load('en_core_web_md')
 neuralcoref.add_to_pipe(nlp)
 
 sample_data = pd.concat([pd.read_csv('data/08-11_16_authors_dataset.csv'),
-                         pd.read_csv('data/16_authors_dataset.csv')], axis = 0).sample(10)
+                         pd.read_csv('data/16_authors_dataset.csv')], axis = 0)
+sample_data = sample_data[sample_data.body.notnull()]
+
 N = sample_data.shape[0]
 
 corpus_params = {'char_ngrams': (2,2),
@@ -26,9 +28,9 @@ corpus_params = {'char_ngrams': (2,2),
                  'pos_detailed': False,
                  'char_punct': False,
                  'char_lower':False,
-                  'coref_n': 2,
-                  'coref_pos_types' :['DT', 'NN', 'NNP', 'NNPS', 'NNS', 'PRP', 'PRP$'],
-                  'coref_dependencies':['dobj', 'nsubj', 'nsubjpass', 'pobj', 'poss'],
+                 'coref_n': 2,
+                 'coref_pos_types' :['DT', 'NN', 'NNP', 'NNPS', 'NNS', 'PRP', 'PRP$'],
+                 'coref_dependencies':['dobj', 'nsubj', 'nsubjpass', 'pobj', 'poss'],
                  'coref_group': True
 }
 
@@ -46,23 +48,4 @@ corpus.init_docs(**corpus_params)
 corpus.build_data()
 
 
-corpus.save('full_corpus.pkl')
-#
-# with open('test_corpus.pickle', 'wb') as f:
-#     pickle.dump(corpus, f, protocol=pickle.HIGHEST_PROTOCOL)
-#
-# import re
-# import matplotlib.pyplot as plt
-# coreftrans = corpus.data.groupby('author').mean().filter(like='coreftrans').reset_index()
-# coreftrans.columns = [re.sub('coreftrans_','',x) for x in coreftrans.columns]
-# #trans = coreftrans.filter(like = ' ').columns
-# coreftransmats = {author: np.zeros((4,4)) for author in coreftrans.author}
-#
-# coref_map = {'O':0, 'S':1, 'Other':2,'_':3}
-#
-# for i in range(coreftrans.shape[0]):
-#     df=coreftrans.iloc[i]
-#     author = df['author']
-#     for c in df.index[df.index!='author']:
-#         m1,m2 = c.split(' ')
-#         coreftransmats[author][coref_map[m1],coref_map[m2]] = df[c]
+corpus.save('data/full_corpus.pkl')
