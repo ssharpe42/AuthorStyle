@@ -200,7 +200,8 @@ class Corpus():
     def generate_model_data(self, type='multiclass',
                             model_authors=[],
                             feature_sets=['lex', 'coref', 'pos', 'word', 'char', 'voice'],
-                            encoding_type = 'onehot'):
+                            encoding_type = 'onehot',
+                            random_state = 42):
 
         if encoding_type == 'onehot':
             encoder = LabelBinarizer()
@@ -236,59 +237,51 @@ class Corpus():
             authors = self.authors
             y = encoder.fit_transform(authors)
 
-        success = False
-        while not success:
-            try:
-                #Split into k folds
-                kf = KFold(n_splits=5, shuffle = True)
-                train_indx = []
-                test_indx = []
-                for train, test in kf.split(X, y):
-                    train_indx.append(train)
-                    test_indx.append(test)
+        #Split into k folds
+        kf = KFold(n_splits=5, shuffle = True, random_state=42)
+        train_indx = []
+        test_indx = []
+        for train, test in kf.split(X, y):
+            train_indx.append(train)
+            test_indx.append(test)
 
-                data_dict = {'X_train':[],
-                             'X_val':[],
-                             'X_test':[],
-                             'y_train': [],
-                             'y_val':[],
-                             'y_test':[],
-                             'encoder':encoder}
+        data_dict = {'X_train':[],
+                     'X_val':[],
+                     'X_test':[],
+                     'y_train': [],
+                     'y_val':[],
+                     'y_test':[],
+                     'encoder':encoder}
 
-                for k in range(5):
-                    X_train, X_val, y_train, y_val, author_train, author_val = train_test_split(X[train_indx[k]], y[train_indx[k]],
-                                                                                                authors.iloc[train_indx[k]],
-                                                                                                test_size=.2,
-                                                                                                random_state=42)
+        for k in range(5):
+            X_train, X_val, y_train, y_val, author_train, author_val = train_test_split(X[train_indx[k]], y[train_indx[k]],
+                                                                                        authors.iloc[train_indx[k]],
+                                                                                        test_size=.2,
+                                                                                        random_state=42)
 
-                    X_test = X[test_indx[k]]
-                    y_test = y[test_indx[k]]
+            X_test = X[test_indx[k]]
+            y_test = y[test_indx[k]]
 
-                    ros = RandomOverSampler(sampling_strategy='not majority', random_state=42, return_indices=True)
+            ros = RandomOverSampler(sampling_strategy='not majority', random_state=42, return_indices=True)
 
-                    _, _, indx = ros.fit_resample(X_train, y_train)
-                    X_train = X_train[indx]
-                    y_train = y_train[indx]
+            _, _, indx = ros.fit_resample(X_train, y_train)
+            X_train = X_train[indx]
+            y_train = y_train[indx]
 
-                    _, _, indx = ros.fit_resample(X_val, y_val)
-                    X_val = X_val[indx]
-                    y_val = y_val[indx]
+            _, _, indx = ros.fit_resample(X_val, y_val)
+            X_val = X_val[indx]
+            y_val = y_val[indx]
 
-                    _, _, indx = ros.fit_resample(X_test, y_test)
-                    X_test = X_test[indx]
-                    y_test = y_test[indx]
+            _, _, indx = ros.fit_resample(X_test, y_test)
+            X_test = X_test[indx]
+            y_test = y_test[indx]
 
-                    data_dict['X_train'].append(X_train)
-                    data_dict['X_val'].append(X_val)
-                    data_dict['X_test'].append(X_test)
-                    data_dict['y_train'].append(y_train)
-                    data_dict['y_val'].append(y_val)
-                    data_dict['y_test'].append(y_test)
-
-                success = True
-            except:
-                print('Unable to get enough samples in one fold')
-                pass
+            data_dict['X_train'].append(X_train)
+            data_dict['X_val'].append(X_val)
+            data_dict['X_test'].append(X_test)
+            data_dict['y_train'].append(y_train)
+            data_dict['y_val'].append(y_val)
+            data_dict['y_test'].append(y_test)
 
         return data_dict
 

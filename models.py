@@ -152,7 +152,8 @@ class Network():
             epochs = 20,
             batch_size = 32,
             early_stopping = True,
-            stop_patience = 10):
+            stop_patience = 10,
+            verbose = 1):
 
             #1.4547118e-05, 1.3314760e-06, 5.3525422e-05
 
@@ -163,7 +164,8 @@ class Network():
             self.model.fit(self.X, self.y,
                           validation_data=(self.X_val, self.y_val),
                           epochs=epochs, batch_size=batch_size,
-                          callbacks=[earlystopper]
+                          callbacks=[earlystopper],
+                           verbose = verbose
             )
         else:
             self.model.fit(self.X, self.y,
