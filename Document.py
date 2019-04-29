@@ -1,13 +1,7 @@
 import numpy as np
-import spacy
-import nltk
 from collections import Counter, defaultdict
-import pandas as pd
 import re
 
-#Useful links
-# Span class: https://spacy.io/api/span - Attribute section
-# Token class: https://spacy.io/api/token - attribute section
 
 class Document():
 
@@ -49,7 +43,6 @@ class Document():
 
         """
         Calculates sentence lengths for each sentence in document
-        :return:
         """
 
         self.sent_lengths = [s.__len__() for s in self.doc.sents]
@@ -134,6 +127,13 @@ class Document():
         return True
 
     def voice_passiveness(self, passive_mapper):
+
+        """
+        Compile passive voice features for document.
+
+        :param passive_mapper: maps verbs to passive verb category
+        """
+
         sentence_counter = Counter()
         word_counter = Counter()
         for sentence in self.doc.sents:
