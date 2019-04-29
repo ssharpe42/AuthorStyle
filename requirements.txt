@@ -14,8 +14,6 @@ cytoolz==0.9.0.1
 decorator==4.3.2
 dill==0.2.9
 docutils==0.14
-en-core-web-md==2.1.0
-en-core-web-sm==2.1.0
 en-coref-md==3.0.0
 falcon==1.4.1
 gast==0.2.2
@@ -39,11 +37,12 @@ mock==2.0.0
 msgpack==0.5.6
 msgpack-numpy==0.4.3.2
 murmurhash==0.28.0
--e git+git@github.com:ssharpe42/AuthorStyle.git@26a596fac494bcea1726cccfaae3e08affb46bb4#egg=neuralcoref
+-e git+git@github.com:ssharpe42/AuthorStyle.git@4fa12e08c11b0fc23ecc1663ebcfbb769c57499b#egg=neuralcoref
 nltk==3.4
 numpy==1.16.2
 pandas==0.24.2
 parso==0.3.4
+patsy==0.5.1
 pbr==5.1.3
 pexpect==4.6.0
 pickleshare==0.7.5
@@ -67,6 +66,7 @@ singledispatch==3.4.0.3
 six==1.12.0
 spacy==2.1.3
 srsly==0.0.5
+statsmodels==0.9.0
 tensorboard==1.13.1
 tensorflow==1.13.1
 tensorflow-estimator==1.13.0

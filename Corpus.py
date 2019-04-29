@@ -3,7 +3,6 @@ import string
 
 import numpy as np
 import pandas as pd
-# from imblearn.datasets import make_imbalance,
 from imblearn.over_sampling import RandomOverSampler
 from sklearn.feature_extraction.text import CountVectorizer
 from spacy.lang.en.stop_words import STOP_WORDS 
@@ -58,12 +57,15 @@ class Corpus():
 
         self.word_ngrams = word_ngrams
         self.pos_ngrams = pos_ngrams
+
+        #Vectorize char, word, pos counts
         self.char_vectorizer = CountVectorizer(analyzer='char', preprocessor=None if char_punct else self.preprocessor,
                                                lowercase=char_lower, ngram_range=char_ngrams, max_features=char_topk)
         self.word_vectorizer = CountVectorizer(tokenizer=self.tokenization, ngram_range=word_ngrams,
                                                max_features=word_topk)
         self.pos_vectorizer = CountVectorizer(tokenizer=self.tokenization, ngram_range=pos_ngrams)
 
+        #Process features in each document
         for i in range(len(self.documents)):
             print('Processing doc {} of {}'.format(i, len(self.documents)))
             self.documents[i].process_doc(
@@ -81,18 +83,38 @@ class Corpus():
         self.n_docs = len(self.documents)
 
     def tokenization(self, doc):
+        """
+        Simple tokenizer for pre-processed text
+        :param doc: document text
+        :return: tokenized text
+        """
         return doc.split(' ')
 
     def preprocessor(self, doc):
+        """
+        Preprocessor for char vectorizer
+        :param doc: document text
+        :return: processed text (without punctuation)
+        """
         return doc.translate(str.maketrans('', '', string.punctuation))
 
     def add_document(self, document):
+
+        """
+        Add document to self list
+
+        :param document: new document
+        """
 
         assert isinstance(document, Document), "Add only documents"
 
         self.documents.append(document)
 
     def fit_char_vectorizer(self):
+
+        """
+        Create char feature matrix
+        """
 
         doc_text = [d.text for d in self.documents]
 
@@ -104,9 +126,14 @@ class Corpus():
         #Normalize to probabilities
         self.char_mat = self.char_mat.div(self.char_mat.sum(axis = 1), axis = 0)
 
+        # Add to feature set list
         self.feature_sets['char'] = self.char_vocab
 
     def fit_word_vectorizer(self):
+
+        """
+        Create word feature vector
+        """
 
         clean_doc_text = [' '.join(d.words) for d in self.documents]
 
@@ -118,10 +145,14 @@ class Corpus():
         # Normalize to probabilities
         self.word_mat = self.word_mat.div(self.word_mat.sum(axis=1), axis=0)
 
-
+        #Add to feature set list
         self.feature_sets['word'] = self.word_vocab
 
     def fit_pos_vectorizer(self):
+
+        """
+        Create POS feature matrix
+        """
 
         clean_doc_pos = [' '.join(d.pos_tokens) for d in self.documents]
 
@@ -132,11 +163,16 @@ class Corpus():
 
         # Normalize to probabilities
         self.pos_mat = self.pos_mat.div(self.pos_mat.sum(axis=1), axis=0)
-
+        # Add to feature set list
         self.feature_sets['pos'] = self.pos_vocab
 
     # ....etc
     def coref_features(self):
+
+        """
+        Aggregate coref features to matrices
+
+        """
 
         self.coref_prob = pd.DataFrame([self.documents[i].coref_prob for i in range(self.n_docs)]).fillna(0)
         self.coref_spans = pd.DataFrame([self.documents[i].coref_spans for i in range(self.n_docs)]).fillna(0)
@@ -155,6 +191,10 @@ class Corpus():
 
     def lexical_features(self):
 
+        """
+        Aggregate misc lexical features into matrices
+        """
+
         self.lex_mat = pd.DataFrame({'sent_length': [np.mean(d.sent_lengths) for d in self.documents],
                                      'sent_std': [np.std(d.sent_lengths) for d in self.documents],
                                      'word_length': [np.mean(d.word_lengths) for d in self.documents],
@@ -166,6 +206,10 @@ class Corpus():
         self.feature_sets['lex'] = self.lex_mat.columns.values
 
     def voice_features(self):
+
+        """
+        Aggregate voice features into matrices
+        """
 
         self.voice_mat = pd.DataFrame({"hattrick_freq" : [d.hattrick_freq for d in self.documents],
                                        "agentless_freq" : [d.agentless_freq for d in self.documents],
@@ -180,6 +224,10 @@ class Corpus():
 
 
     def build_data(self):
+
+        """
+        Builds all feature matrices and combines data into one dataframe
+        """
 
         self.fit_char_vectorizer()
         self.fit_word_vectorizer()
@@ -203,6 +251,19 @@ class Corpus():
                             encoding_type = 'onehot',
                             random_state = 42):
 
+        """
+        Produce 5 cross validation sets for author attribution experiments. Each of the 5 cv rounds include a training,
+        validation, and testing/evaluation set which is upsampled to include even proportions for each class.
+
+        :param type:  experiment type; one of onevsone, onevsall, multiclass
+        :param model_authors: If type == onevsone, a list of two authors; if type == onevsall a list of one author; if multiclass is ignored
+        :param feature_sets: List of feature sets to include
+        :param encoding_type: encoding as 'onehot' for NN or labels for SVM
+        :param random_state: random state for splitting into folds
+        :return: a dictionary of data for experiment. Includes 5 folds for X_train, X_val, X_test, y_train, y_val, y_test, and the LabelEncoder/Binarizer
+        """
+
+
         if encoding_type == 'onehot':
             encoder = LabelBinarizer()
         else:
@@ -214,10 +275,9 @@ class Corpus():
             features.extend(self.feature_sets[f])
 
         feature_indx = np.array([self.features[f] for f in features])
-
         X = self.X_[:, feature_indx]
 
-        # Type is one of 'multiclass' or 'onevsone' or 'onevsall'
+        # Type is one of 'multiclass' or 'onevsone' or 'onevsall'. Set up features and labels accordingly.
         if type == 'onevsone':
 
             author_indx = np.where(self.authors.isin(model_authors))[0]
@@ -253,6 +313,7 @@ class Corpus():
                      'y_test':[],
                      'encoder':encoder}
 
+        # For each fold create training, validation, and evaluation/test
         for k in range(5):
             X_train, X_val, y_train, y_val, author_train, author_val = train_test_split(X[train_indx[k]], y[train_indx[k]],
                                                                                         authors.iloc[train_indx[k]],
@@ -284,6 +345,7 @@ class Corpus():
             data_dict['y_test'].append(y_test)
 
         return data_dict
+
 
     def save(self, filename):
         # Cant pickle spacy docs
