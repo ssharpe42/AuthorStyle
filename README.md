@@ -1,5 +1,5 @@
-# AuthorStyle
-
+# Stylometry in the Modern Era: Coreference and Voice for Authorship Attribution
+#### Yong Sik Cho, Samuel Sharpe, Harry Smith
 
 
 #### Virtual Environment
