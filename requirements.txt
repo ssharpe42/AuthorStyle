@@ -38,7 +38,7 @@ msgpack==0.5.6
 msgpack-numpy==0.4.3.2
 murmurhash==0.28.0
 -e git+git@github.com:ssharpe42/AuthorStyle.git@4fa12e08c11b0fc23ecc1663ebcfbb769c57499b#egg=neuralcoref
-nltk==3.4
+nltk==3.4.5
 numpy==1.16.2
 pandas==0.24.2
 parso==0.3.4
