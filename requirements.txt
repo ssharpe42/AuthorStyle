@@ -19,7 +19,7 @@ falcon==1.4.1
 gast==0.2.2
 grpcio==1.19.0
 h5py==2.9.0
-html5lib==0.9999999
+html5lib==0.99999999
 idna==2.8
 imbalanced-learn==0.4.3
 ipython==7.3.0
